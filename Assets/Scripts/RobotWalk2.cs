@@ -1,0 +1,1188 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+//using System;
+using UnityEngine.UI;
+using Unity.MLAgents;
+using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Sensors;
+using System;
+using System.Net.Http.Headers;
+using UnityEditor;
+
+public class RobotWalk : Agent
+{
+    private int agentID;
+    public Transform Agent; //Agent à reset à chaque tentative
+    public Transform EnvToReset; //Environnement à reset à chaque tentative
+    private BodyPartManager bodyPartManager;
+    private BodyPartManager envPartManager;
+    public Transform Target;
+    public Transform Pressure_Plate;
+    public ColorChanger colorChanger;
+    public Transform Head;
+    public Transform Foot_LEFT;
+    public Transform Foot_RIGHT;
+    public Transform Tibias_LEFT;
+    public Transform Tibias_RIGHT;
+    public Transform Cuisse_LEFT;
+    public Transform Cuisse_RIGHT;
+    public Transform Bassin;
+    public Transform Abdos;
+    public Transform Torse;
+    public Transform Arm_LEFT;
+    public Transform Arm_RIGHT;
+    public Transform Hand_LEFT;
+    public Transform Hand_RIGHT;
+    public Transform Coude_LEFT;
+    public Transform Coude_RIGHT;
+    public Transform Shoulder_LEFT;
+    public Transform Shoulder_RIGHT;
+    // public Transform berceauAvant;
+    // public Transform berceauArriere;
+    public ConfigurableJoint Head_JOINT;
+    // public ConfigurableJoint Foot_LEFT_JOINT;
+    // public ConfigurableJoint Foot_RIGHT_JOINT;
+    public ConfigurableJoint Tibias_LEFT_JOINT;
+    public ConfigurableJoint Tibias_RIGHT_JOINT;
+    public ConfigurableJoint Cuisse_LEFT_JOINT;
+    public ConfigurableJoint Cuisse_RIGHT_JOINT;
+    public ConfigurableJoint Bassin_JOINT;
+    public ConfigurableJoint Abdos_JOINT;
+    public ConfigurableJoint Shoulder_LEFT_JOINT;
+    public ConfigurableJoint Shoulder_RIGHT_JOINT;
+    public ConfigurableJoint Coude_LEFT_JOINT;
+    public ConfigurableJoint Coude_RIGHT_JOINT;
+    private float TempsSession = 0f;
+    private float initialReward = 1.0f;
+    private float decayRate = 0.05f;
+    private float currentReward;
+    private Vector3 lastPosition;
+    private float distanceToTargetAtStart;
+    private float normanHeadHeight = 3.77f;
+    public FootContact leftFootContact;
+    public FootContact rightFootContact;
+    public FootContact leftTibiasContact;
+    public FootContact rightTibiasContact;
+    public FootContact leftHandContact;
+    public FootContact rightHabdContact;
+    public FootContact headContact;
+    public FootContact torseContact;
+    public FootContact abdoContact;
+    public FootContact bassinContact;
+    private int runNumber = 0;
+    public float forwardReward = 1f;
+    public float lateralPenalty = -0.5f;
+    public float backwardPenalty = -1f;
+    private Quaternion lastRotation;
+    //private bool resetInProgress = false;
+    //private int lastDistanceToTarget = 0;
+    /// <summary>
+    /// ////////////////////
+    // Implémentation de la fatigue
+    ////////////////////////
+    /// </summary>
+    private const float MaxFatigue = 100f;
+    private const float MinFatigue = -100f;
+    private const float FatigueIncrement = 200f;
+    private const float RecoveryRate = 1f;
+    private const float MaxPower = 200f;
+    private float Fatigue_Head = 0.0f;
+    // private float Fatigue_Foot_LEFT = 0.0f;
+    // private float Fatigue_Foot_RIGHT = 0.0f;
+    private float Fatigue_Tibias_LEFT = 0.0f;
+    private float Fatigue_Tibias_RIGHT = 0.0f;
+    private float Fatigue_Cuisse_LEFT = 0.0f;
+    private float Fatigue_Cuisse_RIGHT = 0.0f;
+    private float Fatigue_Bassin = 0.0f;
+    private float Fatigue_Abdos = 0.0f;
+    private float Fatigue_Torse = 0.0f;
+    private float Fatigue_Shoulder_LEFT = 0.0f;
+    private float Fatigue_Shoulder_RIGHT = 0.0f;
+    private float Fatigue_Coude_RIGHT = 0.0f;
+    private float Fatigue_Coude_LEFT = 0.0f;
+    private float timeSinceLastStepLeft = 0f;
+    private float timeSinceLastStepRight = 0f;
+    private bool isLeftFootInFront = false;
+    private bool stepInProgressRight = false;
+    private bool stepInProgressLeft = false;
+    private bool lastStepInProgress = false;
+    private bool firstStep = true;
+    private float maxStepDuration = 3f;  // Durée maximale pour un pied devant l'autre
+    private float minStepDuration = 0.25f;
+    private int enchainementStep = 1;
+    private int maxEnchainements = 1;
+    private bool leftFootParallel = false;
+    private bool rightFootParallel = false;
+    private float leftFootAngle = 0f;
+    private float rightFootAngle = 0f;
+    public Rigidbody[] bodyParts;
+    private Vector3 cachedCenterOfGravity;
+    float PerpendicularDistanceFromGoC = 0f;
+    float distanceToCoGFromLeftFoot  = 0f;
+    float distanceToCoGFromRightFoot = 0f;
+
+    public override void Initialize()
+    {
+        bodyPartManager = Agent.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `Agent`
+        //envPartManager = EnvToReset.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `EnvToReset`
+
+        if (bodyPartManager != null)
+            bodyPartManager.Initialize(Agent); // Initialisez avec le Transform approprié
+
+        if (envPartManager != null)
+            //envPartManager.Initialize(EnvToReset); // Initialisez avec le Transform approprié
+        Target.gameObject.SetActive(true);
+        //Target.localPosition = new Vector3(Random.Range(-5f,5f), 3f,Random.Range(-13,13));
+        distanceToTargetAtStart = Vector3.Distance((Foot_LEFT.position + Foot_RIGHT.position)/2, Target.position);
+        lastPosition = Torse.position;
+        lastRotation = Torse.rotation;
+    }
+    public override void OnEpisodeBegin()
+    {
+        enchainementStep = 1;
+        Fatigue_Head = 100.0f;
+        Fatigue_Tibias_LEFT = 100.0f;
+        Fatigue_Tibias_RIGHT = 100.0f;
+        Fatigue_Cuisse_LEFT = 100.0f;
+        Fatigue_Cuisse_RIGHT = 100.0f;
+        Fatigue_Bassin = 100.0f;
+        Fatigue_Abdos = 100.0f;
+        Fatigue_Torse = 100.0f;
+        Fatigue_Shoulder_LEFT = 100.0f;
+        Fatigue_Shoulder_RIGHT = 100.0f;
+        Fatigue_Coude_RIGHT = 100.0f;
+        Fatigue_Coude_LEFT = 100.0f;
+        runNumber++;
+        TempsSession = 0f;
+        currentReward = 1f;
+        //lastDistanceToTarget = 0;
+        firstStep = false;
+
+
+        if (bodyPartManager == null)
+        {
+            Debug.LogError("bodyPartManager is not assigned.");
+        }
+        else
+        {
+            //bodyPartManager.ResetParts(this);
+            //bodyPartManager.ResetParts(this, new Vector3(0, 3, 0), Quaternion.Euler(0, 0, 0));
+            bodyPartManager.ResetParts(new Vector3(0, 2f, -22), Quaternion.Euler(UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0)));
+            //bodyPartManager.ResetParts(new Vector3(6.6f, 1, -6), Quaternion.Euler(0, 200, 0));
+        }
+        //Agent.position = new Vector3(UnityEngine.Random.Range(-5, 5), 2, UnityEngine.Random.Range(-5, 5));
+        Agent.rotation = Quaternion.Euler(UnityEngine.Random.Range(-0, -0), UnityEngine.Random.Range(-25, 25), UnityEngine.Random.Range(-10, 10));
+
+
+        // Target.localPosition = new Vector3(Random.Range(-25f,25f), 1.9f,10f);
+        // Target1.localPosition = new Vector3(Random.Range(-15f,15f), 1.9f,5f);
+        // Target.gameObject.SetActive(true);
+        Pressure_Plate.gameObject.SetActive(true);
+    }
+
+    public void reward(float value)
+    {
+        AddReward(value);
+        colorChanger.UpdateColorBasedOnReward(value);
+    }
+
+
+    public override void OnActionReceived(ActionBuffers actionBuffers)
+    {
+        base.OnActionReceived(actionBuffers);
+        TempsSession += Time.fixedDeltaTime;
+        currentReward = Mathf.Max(0, initialReward - decayRate * TempsSession);
+        // ApplyRotation(Foot_LEFT_JOINT,100f,200f,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[0], actionBuffers.ContinuousActions[1]);
+        // ApplyRotation(Foot_RIGHT_JOINT,100f,200f, ref Fatigue_Foot_RIGHT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3]);
+        ApplyRotation(Tibias_LEFT_JOINT,100f,200f,ref Fatigue_Tibias_LEFT, actionBuffers.ContinuousActions[0]);
+        ApplyRotation(Tibias_RIGHT_JOINT,100f,200f,ref Fatigue_Tibias_RIGHT, actionBuffers.ContinuousActions[1]);
+        ApplyRotation(Cuisse_LEFT_JOINT,100f,200f, ref Fatigue_Cuisse_LEFT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3],actionBuffers.ContinuousActions[4]);
+        ApplyRotation(Cuisse_RIGHT_JOINT,100f,200f,ref Fatigue_Cuisse_RIGHT, actionBuffers.ContinuousActions[5],actionBuffers.ContinuousActions[6],actionBuffers.ContinuousActions[7]);
+        ApplyRotation(Bassin_JOINT,100f,200f, ref Fatigue_Bassin, actionBuffers.ContinuousActions[8],actionBuffers.ContinuousActions[9]);
+        ApplyRotation(Abdos_JOINT,100f,200f,ref Fatigue_Abdos, actionBuffers.ContinuousActions[10]);
+        ApplyRotation(Head_JOINT,100f,200f,ref Fatigue_Head, actionBuffers.ContinuousActions[11],actionBuffers.ContinuousActions[12]);
+        ApplyRotation(Shoulder_LEFT_JOINT,100f,20000f, ref Fatigue_Shoulder_LEFT, actionBuffers.ContinuousActions[13],actionBuffers.ContinuousActions[14],actionBuffers.ContinuousActions[15]);
+        ApplyRotation(Shoulder_RIGHT_JOINT,100f,20000f, ref Fatigue_Shoulder_RIGHT, actionBuffers.ContinuousActions[16],actionBuffers.ContinuousActions[17],actionBuffers.ContinuousActions[18]);
+        ApplyRotation(Coude_LEFT_JOINT,100f,200f,ref Fatigue_Coude_LEFT, actionBuffers.ContinuousActions[19]);
+        ApplyRotation(Coude_RIGHT_JOINT,100f,200f,ref Fatigue_Coude_RIGHT, actionBuffers.ContinuousActions[20]);
+
+        UpdateFootPosition();
+        // ApplyStepReward();
+
+        float distanceToTargetRestante = Vector3.Distance(((Foot_LEFT.position + Foot_RIGHT.position)/2 + Head.position)/2, Target.position);
+        float distanceParcourue = distanceToTargetAtStart - distanceToTargetRestante ;
+        float proportionTravel = distanceParcourue / distanceToTargetAtStart ;
+
+        float bonus = 0f;
+        //bonus += CenterOfGravityReward();
+        //Debug.Log(bonus+ " /  " + leftFootContact.LeftFootOnFloor + " / " + rightFootContact.RightFootOnFloor);
+        float fatiguePenalty =  ( Fatigue_Head + Fatigue_Abdos + Fatigue_Bassin
+        + Fatigue_Shoulder_LEFT + Fatigue_Shoulder_RIGHT
+        + Fatigue_Coude_LEFT + Fatigue_Coude_RIGHT
+        + Fatigue_Cuisse_LEFT + Fatigue_Cuisse_RIGHT
+        + Fatigue_Tibias_LEFT + Fatigue_Tibias_RIGHT) /1100;
+        //bonus+= fatiguePenalty;
+        //bonus = 1-Vector3.Dot(Torse.forward, Vector3.up);
+        //bonus += proportionTravel * 10;
+        //Debug.Log(proportionTravel*10);
+        //bonus+= isWalkingForward()*5;
+
+        bonus+= headOnTop(penality:0, baseValue:1, timeExpo:false);
+        //Debug.Log("headOnTop:" + headOnTop(penality:0, baseValue:1, timeExpo:false) + " -    " + Vector3.Angle(Cuisse_RIGHT.up, Vector3.up) );
+        //bonus+= verticalStability(angle:45f, exposant:1f);
+        //Debug.Log("verticalStability:" + verticalStability(45f, 1f));
+
+        // //bonus+= DistanceToTarget();
+        // //Debug.Log("DistanceToTarget:"+DistanceToTarget());
+        //Debug.Log("Bonus: "+ bonus);
+        //reward(bonus  );
+        //Debug.Log(reward + " headHeightProportion:"+headHeightProportion + " proportionTravel:"+proportionTravel);
+        //colorChanger.UpdateColorBasedOnReward(reward);
+
+        RecoverFatigue(ref Fatigue_Head);
+        RecoverFatigue(ref Fatigue_Tibias_LEFT);
+        RecoverFatigue(ref Fatigue_Tibias_RIGHT);
+        RecoverFatigue(ref Fatigue_Cuisse_LEFT);
+        RecoverFatigue(ref Fatigue_Cuisse_RIGHT);
+        RecoverFatigue(ref Fatigue_Bassin);
+        RecoverFatigue(ref Fatigue_Abdos);
+        RecoverFatigue(ref Fatigue_Shoulder_LEFT);
+        RecoverFatigue(ref Fatigue_Shoulder_RIGHT);
+        RecoverFatigue(ref Fatigue_Coude_RIGHT);
+        RecoverFatigue(ref Fatigue_Coude_RIGHT);
+    }
+
+    void IncreaseFatigue(ref float fatigue, float increment)
+    {
+        fatigue -= increment;
+        fatigue = Mathf.Min(Math.Max(fatigue, MinFatigue), MaxFatigue);  // Assurez-vous que la fatigue ne dépasse pas le maximum.
+    }
+
+    void RecoverFatigue(ref float fatigue)
+    {
+        fatigue += RecoveryRate * Time.deltaTime;
+        fatigue = Mathf.Max(fatigue, MaxFatigue);
+    }
+
+    float CalculateFatigueEffect(float fatigue, float maxFatigue)
+    {
+        return 1.0f - (fatigue / maxFatigue);  // Réduction linéaire de la capacité basée sur la fatigue.
+    }
+    float CalculateActionIntensity(params float[] actions)
+    {
+        float totalIntensity = 0f;
+        foreach (float action in actions)
+        {
+            totalIntensity += Mathf.Abs(action);  // Somme des valeurs absolues des actions
+        }
+        return totalIntensity;
+    }
+
+    void ApplyRotation(ConfigurableJoint joint, float spring,float power, ref float fatigue, float actionValueX = 0, float actionValueY = 0, float actionValueZ = 0)
+    {
+        float actionIntensity = CalculateActionIntensity(actionValueX, actionValueY, actionValueZ);
+        IncreaseFatigue(ref fatigue, actionIntensity * FatigueIncrement);
+
+        float fatigueEffect = 1.0f - (fatigue / MaxFatigue);
+        float effectivePower = MaxPower * fatigueEffect;
+
+
+        // Création d'une nouvelle configuration de drive
+        JointDrive drive = joint.angularXDrive;
+        //drive.positionSpring = spring; // La rigidité du ressort
+        drive.positionDamper = 0.1f; // L'amortissement
+        drive.maximumForce = Mathf.Infinity; // La force maximale que le drive peut appliquer
+
+        //Application de la configuration de drive à angularXDrive du joint
+        joint.angularXDrive = drive;
+        joint.angularYZDrive = drive;
+        joint.rotationDriveMode = RotationDriveMode.XYAndZ;
+        joint.slerpDrive = drive;
+
+        // Définition de la targetPosition du drive pour appliquer une rotation
+        // Notez que cette méthode est plus symbolique et sert à illustrer le concept.
+        // Vous devrez adapter votre logique pour convertir actionValueX, actionValueY, actionValueZ en une cible viable pour votre scénario.
+        var targetRotation = new Vector3(actionValueX, actionValueY, actionValueZ)*power ;
+        joint.targetRotation = Quaternion.Euler(targetRotation);
+    }
+    void ApplyRotationXZ(ConfigurableJoint joint, float spring, float power, ref float fatigue, float actionValueX = 0, float actionValueZ = 0)
+    {
+
+        float actionIntensity = CalculateActionIntensity(actionValueX, actionValueZ);
+        IncreaseFatigue(ref fatigue, actionIntensity * FatigueIncrement);
+
+        float fatigueEffect = 1.0f - (fatigue / MaxFatigue);
+        float effectivePower = MaxPower * fatigueEffect;
+
+
+        // Création d'une nouvelle configuration de drive
+        JointDrive drive = new JointDrive();
+        drive.positionSpring = spring; // La rigidité du ressort
+        drive.positionDamper = 0.1f; // L'amortissement
+        drive.maximumForce = Mathf.Infinity; // La force maximale que le drive peut appliquer
+
+        // Application de la configuration de drive à angularXDrive du joint
+        joint.rotationDriveMode = RotationDriveMode.XYAndZ;
+        joint.slerpDrive = drive;
+        joint.angularXDrive = drive;
+        joint.angularYZDrive = drive;
+
+        // Définition de la targetPosition du drive pour appliquer une rotation
+        // Notez que cette méthode est plus symbolique et sert à illustrer le concept.
+        // Vous devrez adapter votre logique pour convertir actionValueX, actionValueY, actionValueZ en une cible viable pour votre scénario.
+        var targetRotation = new Vector3(actionValueX,0, actionValueZ)*power;
+        joint.targetRotation = Quaternion.Euler(targetRotation);
+    }
+    float ConvertActionToPower(float actionValue)
+    {
+        float minPower = 25;
+        float maxPower = 500;
+        float minAction = -1;
+        float maxAction = 1;
+        float power = ((actionValue - minAction) * (maxPower - minPower) / (maxAction - minAction)) + minPower;
+        return power;
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActionsOut = actionsOut.ContinuousActions;
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            // #Epaule
+            // continuousActionsOut[13] = 1.0f;
+            continuousActionsOut[16] = 1.0f;
+            // continuousActionsOut[0] = 1.0f;
+            // continuousActionsOut[1] = 1.0f;
+            // continuousActionsOut[0] = 1.0f; //Cuisse G Baissée
+            // continuousActionsOut[2] = 1.0f; // Genoux G Délié
+            // continuousActionsOut[1] = -1.0f; //Cuisse D Levée
+            // continuousActionsOut[5] = -1.0f; // Genoux D Plié
+        }
+        else if (Input.GetKey(KeyCode.DownArrow))
+        {
+            // #Epaule
+            // continuousActionsOut[13] = -1.0f;
+            continuousActionsOut[16] = -1.0f;
+            // continuousActionsOut[0] = -1.0f;
+            // continuousActionsOut[1] = -1.0f;
+        }
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            // #Epaule
+            // continuousActionsOut[14] = 1.0f;
+             continuousActionsOut[17] = 1.0f;
+            // continuousActionsOut[2] = 1.0f;
+            // continuousActionsOut[5] = 1.0f;
+        }
+        else if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            // #Epaule
+            // continuousActionsOut[14] = -1.0f;
+             continuousActionsOut[17] = -1.0f;
+            // continuousActionsOut[0] = -1.0f; //Cuisse G levée
+            // continuousActionsOut[2] = -1.0f; // Genoux G Plié
+            // continuousActionsOut[1] = 1.0f; //Cuisse D Baissée
+            // continuousActionsOut[5] = 1.0f; // Genoux D Déplié
+        }
+
+
+        if (Input.GetKey(KeyCode.C))
+        {
+            // continuousActionsOut[19] = 1.0f;
+            continuousActionsOut[18] = 1.0f;
+        }
+        else if (Input.GetKey(KeyCode.V))
+        {
+            // continuousActionsOut[19] = -1.0f;
+            continuousActionsOut[18] = -1.0f;
+        }
+        // if (Input.GetKey(KeyCode.Y))
+        // {
+        //     continuousActionsOut[15] = 1.0f;
+        //     continuousActionsOut[18] = 1.0f;
+        // }
+        // else if (Input.GetKey(KeyCode.X))
+        // {
+        //     continuousActionsOut[15] = -1.0f;
+        //     continuousActionsOut[18] = -1.0f;
+        // }
+
+
+        if (Input.GetKey(KeyCode.R))
+        {
+            EndEpisode();
+        }
+    }
+
+    private void MeasureGroundDistance(VectorSensor sensor, Transform footTransform, string partName, float maxDistance)
+    {
+        RaycastHit hit;
+        //float maxDistance = 5.0f;  // Choisissez une distance maximale appropriée
+        int groundLayerMask = 1 << LayerMask.NameToLayer("Devetik_Floor");  // Assurez-vous que ce layer est correctement configuré
+
+        // Envoyer un rayon depuis chaque pied vers le bas
+        if (Physics.Raycast(footTransform.position, Vector3.down, out hit, maxDistance, groundLayerMask))
+        {
+            float groundHeight = hit.distance;
+            sensor.AddObservation(groundHeight/maxDistance);  // Ajouter la distance au sol pour ce pied
+        }
+        else
+        {
+            sensor.AddObservation(maxDistance/maxDistance);  // Aucun sol détecté dans la limite de distance
+        }
+    }
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        base.CollectObservations(sensor);
+        // sensor.AddObservation(this.transform.localPosition/10f);
+        // sensor.AddObservation(this.transform.rotation.eulerAngles/360);
+        //Debug.Log(this.transform.localPosition/10f + " " + this.transform.rotation.eulerAngles/360);
+
+        MeasureGroundDistance(sensor, transform, "Transform", 4f);
+        MeasureGroundDistance(sensor, Torse, "Torse", 4f);
+        MeasureGroundDistance(sensor, Foot_LEFT, "Pied.L", 2f);
+        MeasureGroundDistance(sensor, Foot_RIGHT, "Pied.R", 2f);
+
+        // Ajouter la position locale et l'orientation du torse
+        sensor.AddObservation(Torse.localPosition/10f);
+        sensor.AddObservation(Torse.rotation.eulerAngles/360f);
+
+        // Ajouter la vitesse et la vitesse angulaire du torse
+        Rigidbody torseRb = Torse.GetComponent<Rigidbody>();
+        sensor.AddObservation(torseRb.velocity/5f);
+        sensor.AddObservation(torseRb.angularVelocity/5f);
+        sensor.AddObservation(CalculateCenterOfGravity());
+
+        // Positions relatives et vitesses des parties du corps importantes
+        AddBodyPartObservation(Head, sensor);
+        AddBodyPartObservation(Foot_LEFT, sensor);
+        AddBodyPartObservation(Foot_RIGHT, sensor);
+        AddBodyPartObservation(Tibias_LEFT, sensor);
+        AddBodyPartObservation(Tibias_RIGHT, sensor);
+        AddBodyPartObservation(Cuisse_LEFT, sensor);
+        AddBodyPartObservation(Cuisse_RIGHT, sensor);
+        AddBodyPartObservation(Bassin, sensor);
+        AddBodyPartObservation(Abdos, sensor);
+        AddBodyPartObservation(Arm_LEFT, sensor);
+        AddBodyPartObservation(Arm_RIGHT, sensor);
+        AddBodyPartObservation(Hand_LEFT, sensor);
+        AddBodyPartObservation(Hand_RIGHT, sensor);
+        AddBodyPartObservation(Coude_LEFT, sensor);
+        AddBodyPartObservation(Coude_RIGHT, sensor);
+        AddBodyPartObservation(Shoulder_LEFT, sensor);
+        AddBodyPartObservation(Shoulder_RIGHT, sensor);
+
+        // Contact au sol
+        sensor.AddObservation(leftFootContact.LeftFootOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(rightFootContact.RightFootOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(isLeftFootInFront ? 1.0f : 0.0f);
+        sensor.AddObservation(leftFootParallel ? 1.0f : 0.0f);
+        sensor.AddObservation(rightFootParallel ? 1.0f : 0.0f);
+        sensor.AddObservation(leftTibiasContact.LeftTibiasOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(rightTibiasContact.RightTibiasOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(leftHandContact.LeftHandOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(rightHabdContact.RightHandOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(headContact.HeadOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(torseContact.TorseOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(abdoContact.AbdoOnFloor ? 1.0f : 0.0f);
+        sensor.AddObservation(bassinContact.BassinOnFloor ? 1.0f : 0.0f);
+
+        // Distance et direction vers la cible
+        Vector3 toTarget = (Target.position - Torse.position);
+        sensor.AddObservation(toTarget.normalized);
+        sensor.AddObservation(toTarget.magnitude / 100f);
+
+        Vector3 toPlate = (Pressure_Plate.position - Torse.position);
+        sensor.AddObservation(toPlate.normalized);
+        sensor.AddObservation(toPlate.magnitude / 100f);
+
+        // Temps écoulé depuis le début de l'épisode
+        sensor.AddObservation(TempsSession / 300f);
+
+        sensor.AddObservation(Fatigue_Head / MaxFatigue);
+        // sensor.AddObservation(Fatigue_Foot_LEFT / MaxFatigue);
+        // sensor.AddObservation(Fatigue_Foot_RIGHT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Tibias_LEFT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Tibias_RIGHT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Cuisse_LEFT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Cuisse_RIGHT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Bassin / MaxFatigue);
+        sensor.AddObservation(Fatigue_Abdos / MaxFatigue);
+        sensor.AddObservation(Fatigue_Torse / MaxFatigue);
+        sensor.AddObservation(Fatigue_Shoulder_LEFT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Shoulder_RIGHT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Coude_LEFT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Coude_RIGHT / MaxFatigue);
+
+        sensor.AddObservation(Tibias_LEFT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Tibias_RIGHT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Cuisse_LEFT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Cuisse_LEFT_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Cuisse_LEFT_JOINT.targetRotation.z/360);
+        sensor.AddObservation(Cuisse_RIGHT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Cuisse_RIGHT_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Cuisse_RIGHT_JOINT.targetRotation.z/360);
+        sensor.AddObservation(Shoulder_LEFT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Shoulder_LEFT_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Shoulder_LEFT_JOINT.targetRotation.z/360);
+        sensor.AddObservation(Shoulder_RIGHT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Shoulder_RIGHT_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Shoulder_RIGHT_JOINT.targetRotation.z/360);
+        sensor.AddObservation(Coude_RIGHT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Coude_LEFT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Abdos_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Head_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Head_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Bassin_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Bassin_JOINT.targetRotation.y/360);
+        Vector3 currentCoG = CalculateCenterOfGravity(); // Assume que cela retourne le centre de gravité
+        currentCoG = new Vector3(currentCoG.x, 0, currentCoG.z);
+        Vector3 midpoint = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
+        midpoint = new Vector3(midpoint.x, 0, midpoint.z);
+        float distanceToMidpoint = Vector3.Distance(currentCoG, midpoint);
+        sensor.AddObservation(distanceToMidpoint);
+    }
+    private void AddBodyPartObservation(Transform bodyPart, VectorSensor sensor)
+    {
+        // Position relative par rapport au torse et la vitesse de la partie du corps
+        sensor.AddObservation((bodyPart.localPosition - Torse.localPosition)/ 10f);
+        Rigidbody rb = bodyPart.GetComponent<Rigidbody>();
+        sensor.AddObservation(Vector3.Angle(bodyPart.up, Vector3.up) / 180.0f);
+        if (rb != null)
+        {
+            sensor.AddObservation(rb.velocity/5f);
+            sensor.AddObservation(rb.angularVelocity/5f);
+        }
+    }
+
+    public void HandleCollision(string bodyPartName, Collider other)
+    {
+        //Debug.Log(bodyPartName + " a touché " + other.gameObject.name);
+        if(other.gameObject.name == "Target")
+        {
+            reward(10000f);
+            Debug.Log("TARGET TOUCHED !");
+            EndEpisode();
+        }
+        if(other.gameObject.name == "Plate")
+        {
+            reward(100f);
+            Debug.Log("Plate Activated !");
+            Pressure_Plate.gameObject.SetActive(false);
+        }
+        if(other.gameObject.name == "Floor" && bodyPartName != "Pied.R" && bodyPartName != "Pied.L" && bodyPartName != "Tibias.R" && bodyPartName != "Tibias.L")
+        {
+
+            // if(bodyPartName == "Bassin")
+            // {
+            //     //reward(-5000 / (TempsSession + 1f));
+            //     //EndEpisode();
+            //     reward(-1f);
+            // }
+            // if(bodyPartName == "Torse")
+            // {
+            //     reward(-0.5f);
+            // }
+            // if(bodyPartName == "Abdos")
+            // {
+            //     reward(-0.5f);
+            // }
+            // if(bodyPartName == "Head")
+            // {
+            //     reward(-0.75f);
+            // }
+            // if(bodyPartName == "Main.R" || bodyPartName == "Main.L")
+            // {
+            //     //reward(-0.05f);
+            // }
+
+            //reward(-50f);
+            // reward(-5000f / (TempsSession + 1));
+            // EndEpisode();
+            // if(bodyPartName != "Main.R" && bodyPartName != "Main.L" && bodyPartName != "Head" && resetInProgress == false)
+            // {
+            //     reward(-1000f / (TempsSession +1) );
+            //     //EndEpisode();
+            //     resetInProgress = true;
+            //     StartCoroutine(endEpisodeIfHeadNotRise(6f));
+            // }
+            // if(bodyPartName == "Main.L" || bodyPartName == "Main.R")
+            // {
+            //     reward(-30f);
+            // }
+            // if(bodyPartName == "Head")
+            // {
+            //     reward(-60f);
+            //     // reward(-3000f / ((int)TempsSession + 1));
+            //     // Debug.Log(-3000f / ((int)TempsSession + 1));
+            //     // EndEpisode();
+            // }
+            // else if (resetInProgress == false)
+            // {
+            //     // resetInProgress = true;
+            //     // reward(-3f);
+            //     // StartCoroutine(endEpisodeIfHeadNotRise(3f));
+            // }
+        }
+        else
+        {
+            //OnTriggerEnter(other);
+        }
+    }
+
+    IEnumerator endEpisodeIfHeadNotRise(float time)
+    {
+        yield return new WaitForSeconds(time);
+        //resetInProgress = false;
+        if(Head.localPosition.y < (normanHeadHeight * 0.6f))
+        {
+            EndEpisode();
+        }
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.gameObject.tag == "Walls")
+        {
+            //Debug.Log("Wall");
+            reward(-100f);
+            EndEpisode();
+        }
+    }
+
+    private float isWalkingForward()
+    {
+        // Calculer la direction et le déplacement relatif
+        Vector3 displacement = Torse.position - lastPosition;
+        float forwardDistance = Vector3.Dot(displacement, transform.up);
+        //Debug.Log(Vector3.Dot(displacement, transform.forward) +" - "+ Vector3.Dot(displacement, transform.up)  +" - "+ Vector3.Dot(displacement, transform.right));
+        float lateralDistance = Vector3.Dot(displacement, transform.right);
+        float ret = 0f;
+        string log = "";
+        // Récompenser ou pénaliser en fonction de la direction du déplacement
+        if (forwardDistance > 0.01f)
+        {
+            ret -= 5f;
+            log = "Arrière";
+        }
+        else if (forwardDistance < -0.01f)
+        {
+            //ret += 5f;
+            ret += System.Math.Abs(forwardDistance * 50f + 1f);
+            log = "Avant" + System.Math.Abs(forwardDistance * 50f + 5f);
+        }
+        else
+        {
+            log = "Static";
+            ret -= 0.01f;
+        }
+
+        if (Mathf.Abs(lateralDistance) > 0.05f)
+        {
+            //reward(Mathf.Abs(lateralDistance) * lateralPenalty);
+            ret -= System.Math.Abs(lateralDistance * 10f + 1f);
+            log += " et latérale " + lateralDistance;
+        }
+
+        // Mise à jour des positions et rotations pour la prochaine évaluation
+        lastPosition = Torse.position;
+        lastRotation = Torse.rotation;
+        //Debug.Log(log);
+        return ret;
+    }
+
+    private float hasAFootInAir(bool aFootInAir, bool twoFootOnGround)
+    {
+        float ret = 0f;
+        if(twoFootOnGround)
+        {
+            if(leftFootContact.LeftFootOnFloor == true && rightFootContact.RightFootOnFloor == true)
+            {
+                ret = 0.5f;
+            }
+            else if(leftFootContact.LeftFootOnFloor == false && rightFootContact.RightFootOnFloor == false)
+            {
+                ret = -0.5f;
+            }
+        }
+        else
+        {
+            if(leftFootContact.LeftFootOnFloor == false && rightFootContact.RightFootOnFloor == false)
+            {
+                ret-=2f;
+            }
+            else if(leftFootContact.LeftFootOnFloor != rightFootContact.RightFootOnFloor)
+            {
+                ret+=1f;
+            }
+            else if(leftFootContact.LeftFootOnFloor == true && rightFootContact.RightFootOnFloor == true)
+            {
+                ret-=0.01f;
+            }
+        }
+        return ret;
+    }
+
+    private float headOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
+    {
+        float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
+        float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
+        float tolerance = 2.5f;    // Tolérance au-delà de laquelle la récompense devient négative
+        float headHeight = Head.localPosition.y;
+
+        float lowerBound = normanHeadHeight + minHeight;
+        float upperBound = normanHeadHeight + maxHeight;
+
+        // Calculer la distance hors de la plage optimale
+        float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
+        float distanceFromUpperBound = Mathf.Max(headHeight - upperBound, 0);
+        float effectiveDistance = Mathf.Max(distanceFromLowerBound, distanceFromUpperBound);
+
+        float reward;
+
+        if (headHeight >= lowerBound && headHeight <= upperBound)
+        {
+            // La tête est dans la plage idéale
+            if(timeExpo)
+            {
+                reward = baseValue * ((TempsSession*5) + 1);
+            }
+            else
+            {
+                reward = baseValue;
+            }
+            if(leftFootContact.LeftFootOnFloor )
+            {
+                if(Vector3.Angle(Tibias_LEFT.up, Vector3.up) < 25)
+                {
+                    if(Vector3.Angle(Cuisse_LEFT.up, Vector3.up) < 60)
+                    {
+                        if(Vector3.Angle(Bassin.up, Vector3.up) < 25)
+                        {
+                            reward += reward * 2f;
+                        }
+                        else
+                        {
+                            reward += reward * 1.5f;
+                        }
+                    }
+                    else
+                    {
+                        reward += reward ;
+                    }
+                }
+                else
+                {
+                    reward += reward;
+                }
+            }
+            else if(rightFootContact.RightFootOnFloor )
+            {
+                if(Vector3.Angle(Tibias_RIGHT.up, Vector3.up) < 25)
+                {
+                    if(Vector3.Angle(Cuisse_RIGHT.up, Vector3.up) < 60)
+                    {
+                        if(Vector3.Angle(Bassin.up, Vector3.up) < 25)
+                        {
+                            reward += reward * 2f;
+                        }
+                        else
+                        {
+                            reward += reward * 1.5f;
+                        }
+                    }
+                    else
+                    {
+                        reward += reward ;
+                    }
+                }
+                else
+                {
+                    reward += reward;
+                }
+            }
+        }
+        else if (effectiveDistance <= tolerance)
+        {
+            // La récompense diminue linéairement de 1 à 0 à mesure que la distance augmente jusqu'à la tolérance
+            if(timeExpo)
+            {
+                reward = baseValue* ((TempsSession*2) + 1) - (effectiveDistance / tolerance)*baseValue ;
+            }
+            else
+            {
+                reward = baseValue - (effectiveDistance / tolerance)*baseValue ;
+            }
+
+            //Debug.Log("baseValue:"+baseValue+ " -"+(effectiveDistance / tolerance)+" * TempsSession:"+TempsSession+"*2+1");
+        }
+        else
+        {
+            // Au-delà de la tolérance, la récompense devient négative
+            reward = -((effectiveDistance - tolerance) / tolerance);
+        }
+
+        // Appliquer une pénalité si spécifié
+        if (penality != 0)
+        {
+            reward -= penality * (reward > 0 ? 0.1f : 2.0f);  // Pénalité réduite si positive, doublée si négative
+        }
+        else
+        {
+            reward = Math.Max(0, reward);
+        }
+
+        //Debug.Log("Reward: " + reward);
+
+        return reward;
+    }
+
+    private float verticalStability(float angle, float exposant)
+    {
+        float ret = 0f;
+        float verticalAlignment = Vector3.Dot(Torse.up, Vector3.up);
+        float cos15 = Mathf.Cos(angle * Mathf.Deg2Rad); // Convertir 15 degrés en radians puis en cosinus
+
+        if (verticalAlignment >= cos15) {
+            // Si verticalAlignment est dans le range +/- 15°
+            ret = 1f;
+        } else {
+            // Hors de ce range, calculez une pénalité basée sur l'écart au cosinus de 15 degrés
+            float penalty = (cos15 - verticalAlignment) / (1f - cos15); // Normalisez la pénalité par rapport à la plage max possible hors de 15°
+            ret -= penalty;
+        }
+        return ret * exposant;
+    }
+    private float DistanceToTarget()
+    {
+        //float reward = 0f;
+        float distanceToTargetRestante = Vector3.Distance(Torse.position, Target.position);
+        float distanceParcourue = distanceToTargetAtStart - distanceToTargetRestante ;
+        float proportionTravel = distanceParcourue / distanceToTargetAtStart ;
+
+        return proportionTravel;
+    }
+
+    void UpdateFootPosition()
+    {
+        //Contrôle si le pied est parallel au sol
+        Vector3 LeftfootUp = Foot_LEFT.up;
+        Vector3 RightfootUp = Foot_RIGHT.up;
+        Vector3 worldUp = Vector3.up;
+        leftFootAngle = Vector3.Angle(LeftfootUp, worldUp);
+        rightFootAngle = Vector3.Angle(RightfootUp, worldUp);
+
+        leftFootParallel = leftFootAngle < 5f;
+        rightFootParallel = rightFootAngle < 5f;
+
+        //Debug.Log(leftFootParallel + "  -  "+ rightFootParallel);
+
+
+
+        // Positions des pieds en coordonnées locales par rapport au Bassin
+        Vector3 leftFootPosition = Bassin.InverseTransformPoint(Foot_LEFT.position);
+        Vector3 rightFootPosition = Bassin.InverseTransformPoint(Foot_RIGHT.position);
+
+        // Utilisation de la composante z pour déterminer quel pied est en avant
+        //bool isLeftFootInFront = leftFootPosition.z > rightFootPosition.z;
+        isLeftFootInFront = leftFootPosition.z - rightFootPosition.z > 0.005;
+        //Debug.Log(leftFootPosition.z - rightFootPosition.z);
+
+        if(isLeftFootInFront != lastStepInProgress)
+        {
+            stepInProgressLeft = true;
+            stepInProgressRight = true;
+            lastStepInProgress = isLeftFootInFront;
+        }
+
+        if (isLeftFootInFront && stepInProgressLeft == true)
+        {
+            stepInProgressLeft = true;
+            stepInProgressRight = false;
+            timeSinceLastStepLeft += Time.deltaTime;
+            timeSinceLastStepRight = 0;
+        }
+        else if (!isLeftFootInFront && stepInProgressRight == true)
+        {
+            stepInProgressLeft = false;
+            stepInProgressRight = true;
+            timeSinceLastStepRight += Time.deltaTime;
+            timeSinceLastStepLeft = 0;  // Réinitialiser le timer si les positions changent
+        }
+    }
+
+    void ApplyStepReward()
+    {
+        if(enchainementStep > maxEnchainements)
+        {
+            Debug.Log("ID:" + agentID + " - " + enchainementStep);
+            maxEnchainements = enchainementStep;
+        }
+        // Si le pied est resté en avant moins de 2 secondes, récompenser l'agent
+        if (timeSinceLastStepLeft > minStepDuration && timeSinceLastStepLeft < maxStepDuration && stepInProgressLeft == true && leftFootContact.LeftFootOnFloor && leftFootParallel && (Vector3.Angle(Tibias_LEFT.up, Vector3.up) < 25) && (Vector3.Angle(Bassin.up, Vector3.up) < 25) && (Vector3.Angle(Cuisse_LEFT.up, Vector3.up) < 25))
+        {
+            if(firstStep == true)
+            {
+                firstStep = false;
+                reward(50f);
+            }
+            else
+            {
+                reward(1f);  // Récompense pour maintenir un pied devant l'autre
+            }
+            enchainementStep++;
+            stepInProgressLeft = false;
+        }
+        // Pénaliser l'agent si le pied reste en avant plus de 2 secondes
+        else if (timeSinceLastStepLeft >= maxStepDuration)
+        {
+            //Debug.Log("stagne");
+            reward(-1f);
+            timeSinceLastStepLeft = 0;  // Réinitialiser pour éviter des pénalités continues
+            stepInProgressLeft = false;
+        }
+        else if (timeSinceLastStepRight > minStepDuration && timeSinceLastStepRight < maxStepDuration && stepInProgressRight == true && rightFootContact.RightFootOnFloor && rightFootParallel && (Vector3.Angle(Tibias_RIGHT.up, Vector3.up) < 25) && (Vector3.Angle(Bassin.up, Vector3.up) < 25) && (Vector3.Angle(Cuisse_LEFT.up, Vector3.up) < 25))
+        {
+            if(firstStep == true)
+            {
+                firstStep = false;
+                reward(50f);
+            }
+            else
+            {
+                reward(1f);  // Récompense pour maintenir un pied devant l'autre
+            }
+            enchainementStep++;
+            stepInProgressRight = false;
+        }
+        // Pénaliser l'agent si le pied reste en avant plus de 2 secondes
+        else if (timeSinceLastStepRight >= maxStepDuration)
+        {
+            //Debug.Log("stagne");
+            reward(-1f);
+            timeSinceLastStepRight = 0;  // Réinitialiser pour éviter des pénalités continues
+            stepInProgressRight = false;
+        }
+    }
+    // private Vector3 CalculateCenterOfGravity()
+    // {
+    //     Vector3 totalCenterOfMass = Vector3.zero;
+    //     float totalMass = 0f;
+
+    //     foreach (Transform part in bodyParts)
+    //     {
+    //         Rigidbody rb = part.GetComponent<Rigidbody>();
+    //         if (rb != null)
+    //         {
+    //             totalCenterOfMass += rb.worldCenterOfMass * rb.mass;
+    //             totalMass += rb.mass;
+    //         }
+    //     }
+
+    //     if (totalMass > 0)
+    //     {
+    //         return totalCenterOfMass / totalMass;
+    //     }
+    //     return Vector3.zero; // Retourne l'origine si la masse totale est nulle pour éviter une division par zéro
+    // }
+
+    private Vector3 CalculateCenterOfGravity()
+    {
+        Vector3 totalCenterOfMass = Vector3.zero;
+        float totalMass = 0f;
+
+        foreach (Rigidbody rb in bodyParts)
+        {
+            totalCenterOfMass += rb.worldCenterOfMass * rb.mass;
+            totalMass += rb.mass;
+        }
+
+        if (totalMass > 0)
+        {
+            return totalCenterOfMass / totalMass;
+        }
+        return Vector3.zero; // Retourne l'origine si la masse totale est nulle pour éviter une division par zéro
+    }
+
+    private float CalculateHorizontalDistanceToCoG()
+    {
+        Vector3 centerOfGravity = CalculateCenterOfGravity();
+        Vector3 midpoint = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
+        midpoint.y = 0; // Ignorer la composante verticale
+
+        Vector3 centerOfGravityHorizontal = new Vector3(centerOfGravity.x, 0, centerOfGravity.z);
+        return Vector3.Distance(midpoint, centerOfGravityHorizontal);
+    }
+
+    void Update()
+    {
+        // float distance = CalculateHorizontalDistanceToCoG();
+        // Debug.Log("Horizontal distance from midpoint between feet to CoG: " + distance);
+        cachedCenterOfGravity = CalculateCenterOfGravity();
+
+        //Debug.Log(1-Vector3.Dot(Torse.forward, Vector3.up) );
+        if(Vector3.Dot(Torse.forward, Vector3.up) < -0.9)
+        {
+            Debug.Log("RETOURNE !!!!");
+            reward(10000f);
+            EndEpisode();
+        }
+        // if( Head.position.y > 4.62f && (rightFootContact.RightFootOnFloor || leftFootContact.LeftFootOnFloor))
+        // {
+        //     //Debug.Log(Head.position.y);
+        //     reward(10000f);
+        //     EndEpisode();
+        // }
+    }
+
+    private float CenterOfGravityReward()
+    {
+        Vector3 currentCoG = CalculateCenterOfGravity(); // Assume que cela retourne le centre de gravité
+        currentCoG = new Vector3(currentCoG.x, 0, currentCoG.z);
+        Vector3 midpoint = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
+        midpoint = new Vector3(midpoint.x, 0, midpoint.z);
+        float reward = 0f;
+
+        if (leftFootContact.LeftFootOnFloor && rightFootContact.RightFootOnFloor)
+        {
+            // // Les deux pieds sont au sol
+            // float distanceToMidpoint = Vector3.Distance(currentCoG, midpoint);
+            // if(Math.Abs(midpoint.z - currentCoG.z) < 0.2 )
+            // {
+            //     reward += 1f;
+            // }
+            // else
+            // {
+            //     reward -= 1f + distanceToMidpoint;
+            // }
+            // if(Math.Abs(midpoint.x - currentCoG.x) < 0.2 )
+            // {
+            //     reward += 1f;
+            // }
+            // else
+            // {
+            //     reward -= 1f + distanceToMidpoint;
+            // }
+            //Si penché en avant
+            if(PerpendicularDistanceFromGoC >= 0)
+            {
+                //Debug.Log(2 -PerpendicularDistanceFromGoC);
+                reward += 2 -PerpendicularDistanceFromGoC;
+            }
+            else
+            {
+                //Debug.Log(PerpendicularDistanceFromGoC+2);
+                reward += PerpendicularDistanceFromGoC+2;
+            }
+        }
+        else if ( leftFootContact.LeftFootOnFloor || rightFootContact.RightFootOnFloor)
+        {
+            // Un pied est levé
+            Transform supportingFoot = leftFootContact.LeftFootOnFloor ? Foot_LEFT : Foot_RIGHT;
+            Vector3 supportingFootZero = new Vector3(supportingFoot.position.x, 0f, supportingFoot.position.z+0.2f);
+            float distanceToSupportingFoot = leftFootContact.LeftFootOnFloor ? distanceToCoGFromLeftFoot : distanceToCoGFromRightFoot;
+            float distanceZ = Math.Abs(currentCoG.z - supportingFootZero.z);
+            float distanceX = Math.Abs(currentCoG.x - supportingFootZero.x);
+            float supportingFootAngle = leftFootContact.LeftFootOnFloor ? leftFootAngle : rightFootAngle;
+            if(supportingFootAngle < 45)
+            {
+                float CustomPerpendicularDistanceFromGoC = PerpendicularDistanceFromGoC - 0.2f;
+                if(PerpendicularDistanceFromGoC >= 0)
+                {
+                    //Debug.Log(2 -CustomPerpendicularDistanceFromGoC + " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+                    reward += 2 -CustomPerpendicularDistanceFromGoC;
+                }
+                else
+                {
+                    //Debug.Log(CustomPerpendicularDistanceFromGoC+2+ " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+                    reward += CustomPerpendicularDistanceFromGoC+2;
+                }
+            }
+            else
+            {
+                reward -= 1f;
+            }
+            /*
+                //Calcule la distance entre un point et la parallel entre les deux pieds sur le plan horizontale
+                Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z);
+                Vector2 pointB = new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z);
+                Vector2 pointP = new Vector2(currentCoG.x, currentCoG.z);
+
+                // Vecteur direction de la ligne
+                Vector2 lineDirection = (pointB - pointA).normalized;
+
+                // Vecteur du début de la ligne au point
+                Vector2 pointToLineStart = pointP - pointA;
+
+                // Calculer la composante perpendiculaire
+                Vector2 perpendicular = Vector2.Perpendicular(lineDirection);
+                float distanceFromPointToLine = Mathf.Abs(Vector2.Dot(pointToLineStart, perpendicular.normalized));
+            */
+
+        }
+        else
+        {
+            reward = -10f;
+        }
+
+        // Appliquez la récompense ou la pénalité
+        return reward;
+    }
+    void OnDrawGizmos()
+    {
+        if (Application.isPlaying) // Assurez-vous que cela est dessiné uniquement si l'application est en cours d'exécution
+        {
+            Gizmos.color = Color.red;
+            float floorLevel = (Foot_LEFT.position.y + Foot_RIGHT.position.y) / 2;
+            Vector3 floorCoG = CalculateCenterOfGravity();
+            floorCoG = new Vector3(floorCoG.x, floorLevel, floorCoG.z);
+            Gizmos.DrawSphere(floorCoG, 0.1f); // Dessine une petite sphère au centre de gravité
+
+            // Gizmos.color = Color.red;
+            // Gizmos.DrawSphere(floorCoG, 0.1f);
+            // Gizmos.color = Color.blue;
+            // Gizmos.DrawSphere(midpoint, 0.1f);
+            // if (supportingFoot != null) {
+            //     Gizmos.color = Color.green;
+            //     Gizmos.DrawSphere(supportingFoot.position, 0.1f);
+            // }
+            if (Foot_LEFT == null || Foot_RIGHT == null || floorCoG == null)
+            return;
+
+            // Points en 2D pour le calcul
+            Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z);
+            Vector2 pointB = new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z);
+            Vector2 pointP = new Vector2(floorCoG.x, floorCoG.z);
+
+            // Vecteur direction de la ligne
+            Vector2 lineDirection = (pointB - pointA).normalized;
+
+            // Calculer la composante perpendiculaire
+            Vector2 perpendicular = Vector2.Perpendicular(lineDirection).normalized;
+
+            // Trouver le point sur la ligne le plus proche de CoG
+            float t = Vector2.Dot(pointP - pointA, lineDirection);
+            Vector2 closestPoint = pointA + t * lineDirection;
+
+            // Dessiner la ligne entre les deux pieds
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(new Vector3(pointA.x, 0, pointA.y), new Vector3(pointB.x, 0, pointB.y));
+
+            // Dessiner la perpendiculaire du CoG à la ligne
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(new Vector3(closestPoint.x, 0, closestPoint.y), new Vector3(pointP.x, 0, pointP.y));
+
+            // Optionnel: Afficher la distance comme label
+            PerpendicularDistanceFromGoC = Vector2.Dot(pointP - pointA, perpendicular);
+            GUIStyle style = new GUIStyle();
+            style.normal.textColor = Color.white;
+            Vector3 midPoint = (new Vector3(closestPoint.x, 0, closestPoint.y) + new Vector3(pointP.x, 0, pointP.y)) / 2;
+            Handles.Label(midPoint, $"Distance: {PerpendicularDistanceFromGoC:F2}", style);
+            Vector2 centreGauche = new Vector2(Foot_LEFT.position.x+0.3f, Foot_LEFT.position.z);
+            Vector2 centreDroite = new Vector2(Foot_LEFT.position.x-0.3f, Foot_LEFT.position.z);
+            distanceToCoGFromLeftFoot = Vector2.Distance(centreGauche, closestPoint);
+            distanceToCoGFromRightFoot = Vector2.Distance(centreDroite, closestPoint);
+        }
+    }
+}
+

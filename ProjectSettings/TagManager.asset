@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Target
+  - Walls
+  - Floor
+  - Target1
+  - Plate
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - Devetik_Floor
+  - Water
+  - UI
+  - Sensor_Target
+  - Wall.L
+  - Wall.R
+  - Wall.F
+  - Wall.B
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
