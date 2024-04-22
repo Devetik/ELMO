@@ -38,7 +38,7 @@ behaviors:
     keep_checkpoints: 500
     checkpoint_interval: 250000
     max_steps: 500000000
-    time_horizon: 64
+    time_horizon: 1000
     summary_freq: 50000
     threaded: false
     self_play: null
@@ -57,7 +57,7 @@ engine_settings:
   width: 84
   height: 84
   quality_level: 5
-  time_scale: 20
+  time_scale: 10
   target_frame_rate: -1
   capture_frame_rate: 60
   no_graphics: false
