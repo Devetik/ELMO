@@ -10,6 +10,7 @@ using System;
 using System.Net.Http.Headers;
 using UnityEditor;
 using TMPro;
+using Unity.VisualScripting;
 
 public class RobotWalk : Agent
 {
@@ -42,8 +43,8 @@ public class RobotWalk : Agent
     // public Transform berceauAvant;
     // public Transform berceauArriere;
     public ConfigurableJoint Head_JOINT;
-    // public ConfigurableJoint Foot_LEFT_JOINT;
-    // public ConfigurableJoint Foot_RIGHT_JOINT;
+    public ConfigurableJoint Foot_LEFT_JOINT;
+    public ConfigurableJoint Foot_RIGHT_JOINT;
     public ConfigurableJoint Tibias_LEFT_JOINT;
     public ConfigurableJoint Tibias_RIGHT_JOINT;
     public ConfigurableJoint Cuisse_LEFT_JOINT;
@@ -118,12 +119,13 @@ public class RobotWalk : Agent
     private float leftFootAngle = 0f;
     private float rightFootAngle = 0f;
     public Rigidbody[] bodyParts;
-    private Vector3 cachedCenterOfGravity;
     float PerpendicularDistanceFromGoC = 0f;
     float distanceToCoGFromLeftFoot  = 0f;
     float distanceToCoGFromRightFoot = 0f;
     public TextMeshPro textPlateforme;
     private float maxHeadHeight = 2f;
+    private bool hasLanded = false;
+    private int faceOnTheFloor;
 
     public override void Initialize()
     {
@@ -143,6 +145,7 @@ public class RobotWalk : Agent
     }
     public override void OnEpisodeBegin()
     {
+        hasLanded = false;
         enchainementStep = 1;
         Fatigue_Head = 100.0f;
         Fatigue_Tibias_LEFT = 100.0f;
@@ -171,11 +174,21 @@ public class RobotWalk : Agent
         {
             //bodyPartManager.ResetParts(this);
             //bodyPartManager.ResetParts(this, new Vector3(0, 3, 0), Quaternion.Euler(0, 0, 0));
-            bodyPartManager.ResetParts(new Vector3(0, 2f, -22), Quaternion.Euler(UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0)));
+            float rand = 1f;//UnityEngine.Random.Range(0f,1f); // 0 == dos 1==face
+            if(rand > 0.5f)
+            {
+                bodyPartManager.ResetParts(new Vector3(0, 1f, -20), Quaternion.Euler(UnityEngine.Random.Range(90,90), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0)));
+                //bodyPartManager.ResetParts(new Vector3(0, 4f, -20), Quaternion.Euler(0,0,0));
+            }
+            else
+            {
+                bodyPartManager.ResetParts(new Vector3(0, 1f, -18), Quaternion.Euler(UnityEngine.Random.Range(-90,-90), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0)));
+            }
+            
             //bodyPartManager.ResetParts(new Vector3(6.6f, 1, -6), Quaternion.Euler(0, 200, 0));
         }
         //Agent.position = new Vector3(UnityEngine.Random.Range(-5, 5), 2, UnityEngine.Random.Range(-5, 5));
-        Agent.rotation = Quaternion.Euler(UnityEngine.Random.Range(90, 90), UnityEngine.Random.Range(-50, -50), UnityEngine.Random.Range(-20, -20));
+        ///////////Agent.rotation = Quaternion.Euler(UnityEngine.Random.Range(90, 90), UnityEngine.Random.Range(-50, -50), UnityEngine.Random.Range(-20, -20));
 
 
         // Target.localPosition = new Vector3(Random.Range(-25f,25f), 1.9f,10f);
@@ -194,67 +207,91 @@ public class RobotWalk : Agent
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
         base.OnActionReceived(actionBuffers);
-        TempsSession += Time.fixedDeltaTime;
-        currentReward = Mathf.Max(0, initialReward - decayRate * TempsSession);
-        // ApplyRotation(Foot_LEFT_JOINT,100f,200f,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[0], actionBuffers.ContinuousActions[1]);
-        // ApplyRotation(Foot_RIGHT_JOINT,100f,200f, ref Fatigue_Foot_RIGHT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3]);
-        ApplyRotation(Tibias_LEFT_JOINT,100f,200f,ref Fatigue_Tibias_LEFT, actionBuffers.ContinuousActions[0]);
-        ApplyRotation(Tibias_RIGHT_JOINT,100f,200f,ref Fatigue_Tibias_RIGHT, actionBuffers.ContinuousActions[1]);
-        ApplyRotation(Cuisse_LEFT_JOINT,100f,200f, ref Fatigue_Cuisse_LEFT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3],actionBuffers.ContinuousActions[4]);
-        ApplyRotation(Cuisse_RIGHT_JOINT,100f,200f,ref Fatigue_Cuisse_RIGHT, actionBuffers.ContinuousActions[5],actionBuffers.ContinuousActions[6],actionBuffers.ContinuousActions[7]);
-        ApplyRotation(Bassin_JOINT,100f,200f, ref Fatigue_Bassin, actionBuffers.ContinuousActions[8],actionBuffers.ContinuousActions[9]);
-        ApplyRotation(Abdos_JOINT,100f,200f,ref Fatigue_Abdos, actionBuffers.ContinuousActions[10]);
-        ApplyRotation(Head_JOINT,100f,200f,ref Fatigue_Head, actionBuffers.ContinuousActions[11],actionBuffers.ContinuousActions[12]);
-        ApplyRotation(Shoulder_LEFT_JOINT,100f,400f, ref Fatigue_Shoulder_LEFT, actionBuffers.ContinuousActions[13],actionBuffers.ContinuousActions[14],actionBuffers.ContinuousActions[15]);
-        ApplyRotation(Shoulder_RIGHT_JOINT,100f,400f, ref Fatigue_Shoulder_RIGHT, actionBuffers.ContinuousActions[16],actionBuffers.ContinuousActions[17],actionBuffers.ContinuousActions[18]);
-        ApplyRotation(Coude_LEFT_JOINT,100f,400f,ref Fatigue_Coude_LEFT, actionBuffers.ContinuousActions[19]);
-        ApplyRotation(Coude_RIGHT_JOINT,100f,400f,ref Fatigue_Coude_RIGHT, actionBuffers.ContinuousActions[20]);
+        if(!hasLanded)
+        {
+            hasLanded = CheckIfLanded();
+        }
+        else
+        {
 
-        UpdateFootPosition();
-        // ApplyStepReward();
+            TempsSession += Time.fixedDeltaTime;
+            currentReward = Mathf.Max(0, initialReward - decayRate * TempsSession);
+            // ApplyRotation(Foot_LEFT_JOINT,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[0], actionBuffers.ContinuousActions[1]);
+            // ApplyRotation(Foot_RIGHT_JOINT, ref Fatigue_Foot_RIGHT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3]);
+            AdjustJointRotation(Tibias_LEFT_JOINT,ref Fatigue_Tibias_LEFT, actionBuffers.ContinuousActions[0]);
+            AdjustJointRotation(Tibias_RIGHT_JOINT,ref Fatigue_Tibias_RIGHT, actionBuffers.ContinuousActions[1]);
+            AdjustJointRotation(Cuisse_LEFT_JOINT, ref Fatigue_Cuisse_LEFT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3],actionBuffers.ContinuousActions[4]);
+            AdjustJointRotation(Cuisse_RIGHT_JOINT,ref Fatigue_Cuisse_RIGHT, actionBuffers.ContinuousActions[5],actionBuffers.ContinuousActions[6],actionBuffers.ContinuousActions[7]);
+            AdjustJointRotation(Bassin_JOINT, ref Fatigue_Bassin, actionBuffers.ContinuousActions[8],actionBuffers.ContinuousActions[9]);
+            AdjustJointRotation(Abdos_JOINT,ref Fatigue_Abdos, actionBuffers.ContinuousActions[10]);
+            AdjustJointRotation(Head_JOINT,ref Fatigue_Head, actionBuffers.ContinuousActions[11],actionBuffers.ContinuousActions[12]);
+            AdjustJointRotation(Shoulder_LEFT_JOINT, ref Fatigue_Shoulder_LEFT, xValue:actionBuffers.ContinuousActions[13],yValue:actionBuffers.ContinuousActions[14],zValue:actionBuffers.ContinuousActions[15], xSpring:150, xForce:150);
+            AdjustJointRotation(Shoulder_RIGHT_JOINT, ref Fatigue_Shoulder_RIGHT, xValue:actionBuffers.ContinuousActions[16],yValue:actionBuffers.ContinuousActions[17],zValue:actionBuffers.ContinuousActions[18], xSpring:360, xForce:360);
+            AdjustJointRotation(Coude_LEFT_JOINT,ref Fatigue_Coude_LEFT, actionBuffers.ContinuousActions[19]);
+            AdjustJointRotation(Coude_RIGHT_JOINT,ref Fatigue_Coude_RIGHT, actionBuffers.ContinuousActions[20]);
+            
 
-        float distanceToTargetRestante = Vector3.Distance(((Foot_LEFT.position + Foot_RIGHT.position)/2 + Head.position)/2, Target.position);
-        float distanceParcourue = distanceToTargetAtStart - distanceToTargetRestante ;
-        float proportionTravel = distanceParcourue / distanceToTargetAtStart ;
+            UpdateFootPosition();
+            // ApplyStepReward();
 
-        float bonus = 0f;
-        //bonus += FlipTrain();
-        bonus += CenterOfGravityReward();
-        //Debug.Log(bonus+ " /  " + leftFootContact.LeftFootOnFloor + " / " + rightFootContact.RightFootOnFloor);
-        float fatiguePenalty =  ( Fatigue_Head + Fatigue_Abdos + Fatigue_Bassin
-        + Fatigue_Shoulder_LEFT + Fatigue_Shoulder_RIGHT
-        + Fatigue_Coude_LEFT + Fatigue_Coude_RIGHT
-        + Fatigue_Cuisse_LEFT + Fatigue_Cuisse_RIGHT
-        + Fatigue_Tibias_LEFT + Fatigue_Tibias_RIGHT) /1100;
-        //bonus+= fatiguePenalty;
-        //bonus = 1-Vector3.Dot(Torse.forward, Vector3.up);
-        //bonus += proportionTravel * 10;
-        //Debug.Log(proportionTravel*10);
-        //bonus+= isWalkingForward()*5;
+            float distanceToTargetRestante = Vector3.Distance(((Foot_LEFT.position + Foot_RIGHT.position)/2 + Head.position)/2, Target.position);
+            float distanceParcourue = distanceToTargetAtStart - distanceToTargetRestante ;
+            float proportionTravel = distanceParcourue / distanceToTargetAtStart ;
 
-        //bonus+= headOnTop(penality:0, baseValue:1, timeExpo:false);
-        //Debug.Log("headOnTop:" + headOnTop(penality:0, baseValue:1, timeExpo:false) + " -    " + Vector3.Angle(Cuisse_RIGHT.up, Vector3.up) );
-        //bonus+= verticalStability(angle:45f, exposant:1f);
-        //Debug.Log("verticalStability:" + verticalStability(45f, 1f));
+            float bonus = 0f;
+            if(faceOnTheFloor == 1 || faceOnTheFloor == 0)
+            {
+                bonus += CenterOfGravityReward();
+                if(bonus > 1.9)
+                {
+                    //Debug.Log("ADD head reward " + headOnTop(penality:0, baseValue:1, timeExpo:false));
+                    bonus += simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
+                }
+            }
+            else
+            {
+                bonus += simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
+            }
 
-        // //bonus+= DistanceToTarget();
-        // //Debug.Log("DistanceToTarget:"+DistanceToTarget());
-        //Debug.Log("Bonus: "+ bonus);
-        reward(bonus);
-        //Debug.Log(reward + " headHeightProportion:"+headHeightProportion + " proportionTravel:"+proportionTravel);
-        //colorChanger.UpdateColorBasedOnReward(reward);
 
-        RecoverFatigue(ref Fatigue_Head);
-        RecoverFatigue(ref Fatigue_Tibias_LEFT);
-        RecoverFatigue(ref Fatigue_Tibias_RIGHT);
-        RecoverFatigue(ref Fatigue_Cuisse_LEFT);
-        RecoverFatigue(ref Fatigue_Cuisse_RIGHT);
-        RecoverFatigue(ref Fatigue_Bassin);
-        RecoverFatigue(ref Fatigue_Abdos);
-        RecoverFatigue(ref Fatigue_Shoulder_LEFT);
-        RecoverFatigue(ref Fatigue_Shoulder_RIGHT);
-        RecoverFatigue(ref Fatigue_Coude_RIGHT);
-        RecoverFatigue(ref Fatigue_Coude_RIGHT);
+            //bonus += FlipTrain();
+            //Debug.Log("CenterOfGravityReward " + CenterOfGravityReward());
+            //Debug.Log(bonus+ " /  " + simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false) + " / " + CenterOfGravityReward());
+            float fatiguePenalty =  ( Fatigue_Head + Fatigue_Abdos + Fatigue_Bassin
+            + Fatigue_Shoulder_LEFT + Fatigue_Shoulder_RIGHT
+            + Fatigue_Coude_LEFT + Fatigue_Coude_RIGHT
+            + Fatigue_Cuisse_LEFT + Fatigue_Cuisse_RIGHT
+            + Fatigue_Tibias_LEFT + Fatigue_Tibias_RIGHT) /1100;
+            //bonus+= fatiguePenalty;
+            //bonus = 1-Vector3.Dot(Torse.forward, Vector3.up);
+            //bonus += proportionTravel * 10;
+            //Debug.Log(proportionTravel*10);
+            //bonus+= isWalkingForward()*5;
+
+            //bonus+= headOnTop(penality:0, baseValue:1, timeExpo:false);
+            //Debug.Log("headOnTop:" + headOnTop(penality:0, baseValue:1, timeExpo:false) + " -    " + Vector3.Angle(Cuisse_RIGHT.up, Vector3.up) );
+            //bonus+= verticalStability(angle:45f, exposant:1f);
+            //Debug.Log("verticalStability:" + verticalStability(45f, 1f));
+
+            bonus+= DistanceToTarget();
+            // //Debug.Log("DistanceToTarget:"+DistanceToTarget());
+            //Debug.Log("Bonus: "+ bonus);
+            reward(bonus);
+            //Debug.Log(reward + " headHeightProportion:"+headHeightProportion + " proportionTravel:"+proportionTravel);
+            //colorChanger.UpdateColorBasedOnReward(reward);
+
+            RecoverFatigue(ref Fatigue_Head);
+            RecoverFatigue(ref Fatigue_Tibias_LEFT);
+            RecoverFatigue(ref Fatigue_Tibias_RIGHT);
+            RecoverFatigue(ref Fatigue_Cuisse_LEFT);
+            RecoverFatigue(ref Fatigue_Cuisse_RIGHT);
+            RecoverFatigue(ref Fatigue_Bassin);
+            RecoverFatigue(ref Fatigue_Abdos);
+            RecoverFatigue(ref Fatigue_Shoulder_LEFT);
+            RecoverFatigue(ref Fatigue_Shoulder_RIGHT);
+            RecoverFatigue(ref Fatigue_Coude_RIGHT);
+            RecoverFatigue(ref Fatigue_Coude_RIGHT);
+        }
     }
 
     void IncreaseFatigue(ref float fatigue, float increment)
@@ -283,70 +320,55 @@ public class RobotWalk : Agent
         return totalIntensity;
     }
 
-    void ApplyRotation(ConfigurableJoint joint, float spring,float power, ref float fatigue, float actionValueX = 0, float actionValueY = 0, float actionValueZ = 0)
+    // Cette fonction ajuste directement la rotation de n'importe quel ConfigurableJoint et configure les drives pour X et YZ.
+    public void AdjustJointRotation(
+        ConfigurableJoint joint,
+        ref float fatigue, 
+        float xValue, 
+        float? yValue = null, 
+        float? zValue = null,
+        float xSpring = 100, 
+        float xForce = 100, 
+        float yzSpring = 75, 
+        float yzForce = 75)
     {
-        float actionIntensity = CalculateActionIntensity(actionValueX, actionValueY, actionValueZ);
+        float actionIntensity = CalculateActionIntensity(xValue, yValue == null ? 0:yValue.Value, zValue == null ? 0:zValue.Value);
         IncreaseFatigue(ref fatigue, actionIntensity * FatigueIncrement);
+        if (joint == null)
+        {
+            Debug.LogError("ConfigurableJoint is null.");
+            return;
+        }
 
-        float fatigueEffect = 1.0f - (fatigue / MaxFatigue);
-        float effectivePower = MaxPower * fatigueEffect;
-
-
-        // Création d'une nouvelle configuration de drive
-        JointDrive drive = joint.angularXDrive;
-        //drive.positionSpring = spring; // La rigidité du ressort
-        drive.positionDamper = 0.1f; // L'amortissement
-        drive.maximumForce = Mathf.Infinity; // La force maximale que le drive peut appliquer
-
-        //Application de la configuration de drive à angularXDrive du joint
-        joint.angularXDrive = drive;
-        joint.angularYZDrive = drive;
-        joint.rotationDriveMode = RotationDriveMode.XYAndZ;
-        joint.slerpDrive = drive;
-
-        // Définition de la targetPosition du drive pour appliquer une rotation
-        // Notez que cette méthode est plus symbolique et sert à illustrer le concept.
-        // Vous devrez adapter votre logique pour convertir actionValueX, actionValueY, actionValueZ en une cible viable pour votre scénario.
-        var targetRotation = new Vector3(actionValueX, actionValueY, actionValueZ)*power ;
+        // Appliquer les rotations cibles
+        Vector3 targetRotation = new Vector3(
+            ConvertInputToRotation(xValue, xValue < 0 ? -joint.highAngularXLimit.limit:joint.lowAngularXLimit.limit),
+            yValue.HasValue ? ConvertInputToRotation(yValue.Value, joint.angularYLimit.limit) : 0,
+            zValue.HasValue ? ConvertInputToRotation(zValue.Value, joint.angularZLimit.limit) : 0
+        );
+        
         joint.targetRotation = Quaternion.Euler(targetRotation);
+        //joint.targetAngularVelocity = targetRotation*4000f;
+
+        // Configurer les drives pour les axes X
+        JointDrive xDrive = joint.angularXDrive;
+        xDrive.positionSpring = xSpring;
+        xDrive.maximumForce = xForce;
+        joint.angularXDrive = xDrive;
+
+        // Configurer les drives pour les axes Y et Z
+        JointDrive yzDrive = joint.angularYZDrive;
+        yzDrive.positionSpring = yzSpring;
+        yzDrive.maximumForce = yzForce;
+        joint.angularYZDrive = yzDrive;
     }
-    void ApplyRotationXZ(ConfigurableJoint joint, float spring, float power, ref float fatigue, float actionValueX = 0, float actionValueZ = 0)
+
+    // Convertit une valeur d'entrée de -1 à 1 en une valeur de rotation en degrés, basée sur la limite maximale spécifiée.
+    private float ConvertInputToRotation(float inputValue, float limit)
     {
-
-        float actionIntensity = CalculateActionIntensity(actionValueX, actionValueZ);
-        IncreaseFatigue(ref fatigue, actionIntensity * FatigueIncrement);
-
-        float fatigueEffect = 1.0f - (fatigue / MaxFatigue);
-        float effectivePower = MaxPower * fatigueEffect;
-
-
-        // Création d'une nouvelle configuration de drive
-        JointDrive drive = new JointDrive();
-        drive.positionSpring = spring; // La rigidité du ressort
-        drive.positionDamper = 0.1f; // L'amortissement
-        drive.maximumForce = Mathf.Infinity; // La force maximale que le drive peut appliquer
-
-        // Application de la configuration de drive à angularXDrive du joint
-        joint.rotationDriveMode = RotationDriveMode.XYAndZ;
-        joint.slerpDrive = drive;
-        joint.angularXDrive = drive;
-        joint.angularYZDrive = drive;
-
-        // Définition de la targetPosition du drive pour appliquer une rotation
-        // Notez que cette méthode est plus symbolique et sert à illustrer le concept.
-        // Vous devrez adapter votre logique pour convertir actionValueX, actionValueY, actionValueZ en une cible viable pour votre scénario.
-        var targetRotation = new Vector3(actionValueX,0, actionValueZ)*power;
-        joint.targetRotation = Quaternion.Euler(targetRotation);
+        return inputValue * limit;
     }
-    float ConvertActionToPower(float actionValue)
-    {
-        float minPower = 25;
-        float maxPower = 500;
-        float minAction = -1;
-        float maxAction = 1;
-        float power = ((actionValue - minAction) * (maxPower - minPower) / (maxAction - minAction)) + minPower;
-        return power;
-    }
+
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -356,6 +378,9 @@ public class RobotWalk : Agent
             // #Epaule
             // continuousActionsOut[13] = 1.0f;
             continuousActionsOut[16] = 1.0f;
+            continuousActionsOut[13] = 1.0f;
+            continuousActionsOut[2] = 1.0f;
+            continuousActionsOut[5] = 1.0f;
             // continuousActionsOut[0] = 1.0f;
             // continuousActionsOut[1] = 1.0f;
             // continuousActionsOut[0] = 1.0f; //Cuisse G Baissée
@@ -368,6 +393,9 @@ public class RobotWalk : Agent
             // #Epaule
             // continuousActionsOut[13] = -1.0f;
             continuousActionsOut[16] = -1.0f;
+            continuousActionsOut[13] = -1.0f;
+            continuousActionsOut[2] = -1.0f;
+            continuousActionsOut[5] = -1.0f;
             // continuousActionsOut[0] = -1.0f;
             // continuousActionsOut[1] = -1.0f;
         }
@@ -375,15 +403,19 @@ public class RobotWalk : Agent
         {
             // #Epaule
             // continuousActionsOut[14] = 1.0f;
-             continuousActionsOut[17] = 1.0f;
-            // continuousActionsOut[2] = 1.0f;
+            continuousActionsOut[0] = 1.0f;
+            continuousActionsOut[1] = 1.0f;
+            continuousActionsOut[19] = 1.0f;
+            continuousActionsOut[20] = 1.0f;
             // continuousActionsOut[5] = 1.0f;
         }
         else if (Input.GetKey(KeyCode.LeftArrow))
         {
             // #Epaule
-            // continuousActionsOut[14] = -1.0f;
-             continuousActionsOut[17] = -1.0f;
+            continuousActionsOut[0] = -1.0f;
+            continuousActionsOut[1] = -1.0f;
+            continuousActionsOut[19] = -1.0f;
+            continuousActionsOut[20] = -1.0f;
             // continuousActionsOut[0] = -1.0f; //Cuisse G levée
             // continuousActionsOut[2] = -1.0f; // Genoux G Plié
             // continuousActionsOut[1] = 1.0f; //Cuisse D Baissée
@@ -442,20 +474,13 @@ public class RobotWalk : Agent
         // sensor.AddObservation(this.transform.localPosition/10f);
         // sensor.AddObservation(this.transform.rotation.eulerAngles/360);
         //Debug.Log(this.transform.localPosition/10f + " " + this.transform.rotation.eulerAngles/360);
+        sensor.AddObservation(OrientationTorseFloor());
 
         MeasureGroundDistance(sensor, transform, "Transform", 4f);
         MeasureGroundDistance(sensor, Torse, "Torse", 4f);
         MeasureGroundDistance(sensor, Foot_LEFT, "Pied.L", 2f);
         MeasureGroundDistance(sensor, Foot_RIGHT, "Pied.R", 2f);
 
-        // Ajouter la position locale et l'orientation du torse
-        sensor.AddObservation(Torse.localPosition/10f);
-        sensor.AddObservation(Torse.rotation.eulerAngles/360f);
-
-        // Ajouter la vitesse et la vitesse angulaire du torse
-        Rigidbody torseRb = Torse.GetComponent<Rigidbody>();
-        sensor.AddObservation(torseRb.velocity/5f);
-        sensor.AddObservation(torseRb.angularVelocity/5f);
         sensor.AddObservation(CalculateCenterOfGravity());
 
         // Positions relatives et vitesses des parties du corps importantes
@@ -502,7 +527,7 @@ public class RobotWalk : Agent
         sensor.AddObservation(toPlate.magnitude / 100f);
 
         // Temps écoulé depuis le début de l'épisode
-        sensor.AddObservation(TempsSession / 300f);
+        sensor.AddObservation(TempsSession / 1000f);
 
         sensor.AddObservation(Fatigue_Head / MaxFatigue);
         // sensor.AddObservation(Fatigue_Foot_LEFT / MaxFatigue);
@@ -536,10 +561,15 @@ public class RobotWalk : Agent
         sensor.AddObservation(Coude_RIGHT_JOINT.targetRotation.x/360);
         sensor.AddObservation(Coude_LEFT_JOINT.targetRotation.x/360);
         sensor.AddObservation(Abdos_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Abdos_JOINT.targetRotation.y/360);
         sensor.AddObservation(Head_JOINT.targetRotation.x/360);
         sensor.AddObservation(Head_JOINT.targetRotation.y/360);
         sensor.AddObservation(Bassin_JOINT.targetRotation.x/360);
         sensor.AddObservation(Bassin_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Foot_LEFT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Foot_LEFT_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Foot_RIGHT_JOINT.targetRotation.x/360);
+        sensor.AddObservation(Foot_RIGHT_JOINT.targetRotation.y/360);
         Vector3 currentCoG = CalculateCenterOfGravity(); // Assume que cela retourne le centre de gravité
         currentCoG = new Vector3(currentCoG.x, 0, currentCoG.z);
         Vector3 midpoint = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
@@ -551,6 +581,8 @@ public class RobotWalk : Agent
     {
         // Position relative par rapport au torse et la vitesse de la partie du corps
         sensor.AddObservation((bodyPart.localPosition - Torse.localPosition)/ 10f);
+        sensor.AddObservation(bodyPart.rotation.eulerAngles/360f);
+        sensor.AddObservation(bodyPart.localPosition/ 100f);
         Rigidbody rb = bodyPart.GetComponent<Rigidbody>();
         sensor.AddObservation(Vector3.Angle(bodyPart.up, Vector3.up) / 180.0f);
         if (rb != null)
@@ -582,19 +614,19 @@ public class RobotWalk : Agent
             {
                 //reward(-5000 / (TempsSession + 1f));
                 //EndEpisode();
-                reward(-1f);
+                //reward(-1f);
             }
             if(bodyPartName == "Torse")
             {
-                reward(-0.5f);
+                //reward(-0.5f);
             }
             if(bodyPartName == "Abdos")
             {
-                reward(-0.5f);
+                //reward(-0.5f);
             }
             if(bodyPartName == "Head")
             {
-                reward(-0.75f);
+                //reward(-0.75f);
             }
             if(bodyPartName == "Main.R" || bodyPartName == "Main.L")
             {
@@ -732,7 +764,7 @@ public class RobotWalk : Agent
         float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
         float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
         float tolerance = 2.5f;    // Tolérance au-delà de laquelle la récompense devient négative
-        float headHeight = Head.localPosition.y;
+        float headHeight = Mathf.Abs(Head.position.y - ((Foot_LEFT.position.y + Foot_RIGHT.position.y)/2));
 
         float lowerBound = normanHeadHeight + minHeight;
         float upperBound = normanHeadHeight + maxHeight;
@@ -819,6 +851,51 @@ public class RobotWalk : Agent
             }
 
             //Debug.Log("baseValue:"+baseValue+ " -"+(effectiveDistance / tolerance)+" * TempsSession:"+TempsSession+"*2+1");
+        }
+        else
+        {
+            // Au-delà de la tolérance, la récompense devient négative
+            reward = -((effectiveDistance - tolerance) / tolerance);
+        }
+
+        // Appliquer une pénalité si spécifié
+        if (penality != 0)
+        {
+            reward -= penality * (reward > 0 ? 0.1f : 2.0f);  // Pénalité réduite si positive, doublée si négative
+        }
+        else
+        {
+            reward = Math.Max(0, reward);
+        }
+
+        //Debug.Log("Reward: " + reward);
+
+        return reward;
+    }
+    private float simpleHeadOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
+    {
+        float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
+        float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
+        float tolerance = 2f;    // Tolérance au-delà de laquelle la récompense devient négative
+        float headHeight = Mathf.Abs(Head.position.y - ((Foot_LEFT.position.y + Foot_RIGHT.position.y)/2));
+
+        float lowerBound = normanHeadHeight + minHeight;
+        float upperBound = normanHeadHeight + maxHeight;
+
+        // Calculer la distance hors de la plage optimale
+        float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
+        float distanceFromUpperBound = Mathf.Max(headHeight - upperBound, 0);
+        float effectiveDistance = Mathf.Max(distanceFromLowerBound, distanceFromUpperBound);
+
+        float reward;
+
+        if (headHeight >= lowerBound && headHeight <= upperBound)
+        {
+            reward = baseValue;
+        }
+        else if (effectiveDistance <= tolerance)
+        {
+            reward = baseValue - (effectiveDistance / tolerance)*baseValue ;
         }
         else
         {
@@ -1020,17 +1097,6 @@ public class RobotWalk : Agent
 
     void Update()
     {
-        // float distance = CalculateHorizontalDistanceToCoG();
-        // Debug.Log("Horizontal distance from midpoint between feet to CoG: " + distance);
-        cachedCenterOfGravity = CalculateCenterOfGravity();
-
-
-        if( Head.position.y > 4.62f && (rightFootContact.RightFootOnFloor || leftFootContact.LeftFootOnFloor))
-        {
-            Debug.Log("WAKE UP!!!");
-            reward(1000f);
-            EndEpisode();
-        }
         if(Head.position.y > maxHeadHeight)
         {
             maxHeadHeight = Head.position.y;
@@ -1103,7 +1169,7 @@ public class RobotWalk : Agent
             }
             else
             {
-                reward -= 1f;
+                reward -= 0.1f;
             }
             /*
                 //Calcule la distance entre un point et la parallel entre les deux pieds sur le plan horizontale
@@ -1125,7 +1191,7 @@ public class RobotWalk : Agent
         }
         else
         {
-            reward = -10f;
+            reward = -1f;
         }
 
         // Appliquez la récompense ou la pénalité
@@ -1198,6 +1264,45 @@ public class RobotWalk : Agent
             EndEpisode();
         }
         return 1-Vector3.Dot(Torse.forward, Vector3.up);
+    }
+    private bool CheckIfLanded()
+    {
+        if(leftFootContact.LeftFootOnFloor || rightFootContact.RightFootOnFloor || bassinContact.BassinOnFloor || torseContact.TorseOnFloor || leftHandContact.LeftHandOnFloor || rightHabdContact.LeftHandOnFloor)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private int OrientationTorseFloor()
+    {
+        // Calcul de l'angle entre le forward du torse et l'up global
+        float angleWithVertical = Vector3.Angle(Torse.forward, Vector3.up);
+
+        // Détermination si l'agent est couché ou debout
+        if (angleWithVertical > 80 && angleWithVertical < 140)
+        {
+            // L'agent est debout ou à l'envers
+            faceOnTheFloor = 0;
+            return 0;
+        }
+        else
+        {
+            // L'agent est couché
+            //Debug.Log("L'agent est couché");
+            // Utilisation du produit scalaire pour déterminer si sur le dos ou le ventre
+            float dotProduct = Vector3.Dot(Torse.forward, Vector3.down);
+            if (dotProduct > 0) // Regarde vers le bas
+            {
+                faceOnTheFloor = 1;
+                return 1;
+            }
+            else
+            {
+                faceOnTheFloor = -1;
+                return -1;
+            }
+        }
     }
 }
 

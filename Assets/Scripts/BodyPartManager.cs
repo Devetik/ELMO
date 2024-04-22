@@ -121,25 +121,27 @@ public class BodyPartManager : MonoBehaviour
         if (parent != null)
         {
             // Déplacer et faire pivoter le parent à la nouvelle position et orientation
-            parent.localPosition = newPosition;
-            parent.rotation = newRotation;
 
             // Réappliquer les états relatifs initiaux des enfants
             foreach (var child in initialRelativeStates)
             {
-                child.Key.localPosition = child.Value.position;
-                child.Key.localRotation = child.Value.rotation;
+                // child.Key.localPosition = child.Value.position;
+                //child.Key.localRotation = child.Value.rotation;
 
                 // Réinitialiser les Rigidbody de manière sûre
                 var rb = child.Key.GetComponent<Rigidbody>();
                 if (rb != null && rb.isKinematic == false)
                 {
-                    rb.velocity = Vector3.zero;
-                    rb.angularVelocity = Vector3.zero;
+                    // rb.velocity = Vector3.zero;
+                    // rb.angularVelocity = Vector3.zero;
                     rb.isKinematic = true; // Rendre cinématique temporairement
+                    child.Key.localPosition = child.Value.position;
+                    child.Key.localRotation = child.Value.rotation;
                     StartCoroutine(ReleaseKinematic(rb, 0.05f));
                 }
             }
+            parent.localPosition = newPosition;
+            parent.rotation = newRotation;
         }
     }
 

@@ -1451,7 +1451,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 776397620535363326, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_BrainParameters.VectorObservationSize
-      value: 245
+      value: 341
       objectReference: {fileID: 0}
     - target: {fileID: 1197718277990064948, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_AngularXDrive.positionSpring
@@ -1513,6 +1513,14 @@ PrefabInstance:
       propertyPath: m_DetectableTags.Array.data[3]
       value: Walls
       objectReference: {fileID: 0}
+    - target: {fileID: 2619891136068407512, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_LowAngularXLimit.limit
+      value: -20
+      objectReference: {fileID: 0}
+    - target: {fileID: 2619891136068407512, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_HighAngularXLimit.limit
+      value: 120
+      objectReference: {fileID: 0}
     - target: {fileID: 3140297027854147000, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_Layer
       value: 6
@@ -1524,6 +1532,14 @@ PrefabInstance:
     - target: {fileID: 4262436578630634731, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_Constraints
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4305703732123382160, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_LowAngularXLimit.limit
+      value: -20
+      objectReference: {fileID: 0}
+    - target: {fileID: 4305703732123382160, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_HighAngularXLimit.limit
+      value: 120
       objectReference: {fileID: 0}
     - target: {fileID: 4470223832038175636, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_Layer
@@ -1543,7 +1559,7 @@ PrefabInstance:
       objectReference: {fileID: 8173096288614869744}
     - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: MaxStep
-      value: 0
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: sensorHolder
@@ -1561,6 +1577,14 @@ PrefabInstance:
       propertyPath: textPlateforme
       value: 
       objectReference: {fileID: 5767752826384394028}
+    - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: Foot_LEFT_JOINT
+      value: 
+      objectReference: {fileID: 8119762809261185583}
+    - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: Foot_RIGHT_JOINT
+      value: 
+      objectReference: {fileID: 775611164665169509}
     - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: bodyParts.Array.size
       value: 20
@@ -1693,6 +1717,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5887382244720979566, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_RotationDriveMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5887382244720979566, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_HighAngularXLimit.limit
+      value: 150
+      objectReference: {fileID: 0}
     - target: {fileID: 6570274549299594212, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_Layer
       value: 0
@@ -1741,6 +1773,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.z
       value: 0.0032
       objectReference: {fileID: 0}
+    - target: {fileID: 8905704386793287481, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_HighAngularXLimit.limit
+      value: 150
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1769,6 +1805,11 @@ Rigidbody:
 --- !u!54 &686949783925650734 stripped
 Rigidbody:
   m_CorrespondingSourceObject: {fileID: 8083184815799615476, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+  m_PrefabInstance: {fileID: 8765611206438963930}
+  m_PrefabAsset: {fileID: 0}
+--- !u!153 &775611164665169509 stripped
+ConfigurableJoint:
+  m_CorrespondingSourceObject: {fileID: 8315389620305759423, guid: 8a13802d41b393c43a3effb056701379, type: 3}
   m_PrefabInstance: {fileID: 8765611206438963930}
   m_PrefabAsset: {fileID: 0}
 --- !u!54 &1757877589161683454 stripped
@@ -1849,6 +1890,11 @@ Rigidbody:
 --- !u!54 &8114669507916696327 stripped
 Rigidbody:
   m_CorrespondingSourceObject: {fileID: 664470196998357469, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+  m_PrefabInstance: {fileID: 8765611206438963930}
+  m_PrefabAsset: {fileID: 0}
+--- !u!153 &8119762809261185583 stripped
+ConfigurableJoint:
+  m_CorrespondingSourceObject: {fileID: 651480095735320821, guid: 8a13802d41b393c43a3effb056701379, type: 3}
   m_PrefabInstance: {fileID: 8765611206438963930}
   m_PrefabAsset: {fileID: 0}
 --- !u!54 &8239727383511515729 stripped
