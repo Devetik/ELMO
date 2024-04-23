@@ -12,8 +12,12 @@ using UnityEditor;
 using TMPro;
 using Unity.VisualScripting;
 
+
 public class RobotWalk : Agent
 {
+    public int currentLesson = 0;
+    private StepReward stepReward;
+    private VariableCustom vc;
     private int agentID;
     public Transform Agent; //Agent à reset à chaque tentative
     public Transform EnvToReset; //Environnement à reset à chaque tentative
@@ -51,6 +55,7 @@ public class RobotWalk : Agent
     public ConfigurableJoint Cuisse_RIGHT_JOINT;
     public ConfigurableJoint Bassin_JOINT;
     public ConfigurableJoint Abdos_JOINT;
+    public ConfigurableJoint Torse_JOINT;
     public ConfigurableJoint Shoulder_LEFT_JOINT;
     public ConfigurableJoint Shoulder_RIGHT_JOINT;
     public ConfigurableJoint Coude_LEFT_JOINT;
@@ -61,7 +66,7 @@ public class RobotWalk : Agent
     private float currentReward;
     private Vector3 lastPosition;
     private float distanceToTargetAtStart;
-    private float normanHeadHeight = 3.77f;
+    public float normanHeadHeight = 3.77f;
     public FootContact leftFootContact;
     public FootContact rightFootContact;
     public FootContact leftTibiasContact;
@@ -125,10 +130,15 @@ public class RobotWalk : Agent
     public TextMeshPro textPlateforme;
     private float maxHeadHeight = 2f;
     private bool hasLanded = false;
-    private int faceOnTheFloor;
+    public int faceOnTheFloor;
+    private Academy m_ResetParams;
+
 
     public override void Initialize()
     {
+        m_ResetParams = Academy.Instance;
+        stepReward = new StepReward(this);
+        vc = new VariableCustom(this);
         bodyPartManager = Agent.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `Agent`
         //envPartManager = EnvToReset.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `EnvToReset`
 
@@ -177,8 +187,8 @@ public class RobotWalk : Agent
             float rand = 1f;//UnityEngine.Random.Range(0f,1f); // 0 == dos 1==face
             if(rand > 0.5f)
             {
-                bodyPartManager.ResetParts(new Vector3(0, 1f, -20), Quaternion.Euler(UnityEngine.Random.Range(90,90), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0)));
-                //bodyPartManager.ResetParts(new Vector3(0, 4f, -20), Quaternion.Euler(0,0,0));
+                bodyPartManager.ResetParts(new Vector3(0, 5f, -20), Quaternion.Euler(UnityEngine.Random.Range(80,100), UnityEngine.Random.Range(-15,15), UnityEngine.Random.Range(-15,15)));
+                //bodyPartManager.ResetParts(new Vector3(0, 5.0f, -20), Quaternion.Euler(90,0,0));
             }
             else
             {
@@ -213,7 +223,23 @@ public class RobotWalk : Agent
         }
         else
         {
-
+            print(m_ResetParams.StepCount);
+            switch (currentLesson)
+            {
+                case 0:
+                    stepReward.RiseHead();
+                    break;
+                case 1:
+                    stepReward.CenterOfGravity();
+                    break;
+                case 2:
+                    stepReward.RiseBody();
+                    break;
+                case 3:
+                    stepReward.Walk();
+                    break;
+            }
+            reward(-1f / MaxStep);
             TempsSession += Time.fixedDeltaTime;
             currentReward = Mathf.Max(0, initialReward - decayRate * TempsSession);
             // ApplyRotation(Foot_LEFT_JOINT,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[0], actionBuffers.ContinuousActions[1]);
@@ -225,34 +251,21 @@ public class RobotWalk : Agent
             AdjustJointRotation(Bassin_JOINT, ref Fatigue_Bassin, actionBuffers.ContinuousActions[8],actionBuffers.ContinuousActions[9]);
             AdjustJointRotation(Abdos_JOINT,ref Fatigue_Abdos, actionBuffers.ContinuousActions[10]);
             AdjustJointRotation(Head_JOINT,ref Fatigue_Head, actionBuffers.ContinuousActions[11],actionBuffers.ContinuousActions[12]);
-            AdjustJointRotation(Shoulder_LEFT_JOINT, ref Fatigue_Shoulder_LEFT, xValue:actionBuffers.ContinuousActions[13],yValue:actionBuffers.ContinuousActions[14],zValue:actionBuffers.ContinuousActions[15], xSpring:150, xForce:150);
-            AdjustJointRotation(Shoulder_RIGHT_JOINT, ref Fatigue_Shoulder_RIGHT, xValue:actionBuffers.ContinuousActions[16],yValue:actionBuffers.ContinuousActions[17],zValue:actionBuffers.ContinuousActions[18], xSpring:360, xForce:360);
+            AdjustJointRotation(Shoulder_LEFT_JOINT, ref Fatigue_Shoulder_LEFT, actionBuffers.ContinuousActions[13],actionBuffers.ContinuousActions[14],zValue:actionBuffers.ContinuousActions[15]/*, xSpring:150, xForce:150*/);
+            AdjustJointRotation(Shoulder_RIGHT_JOINT, ref Fatigue_Shoulder_RIGHT, actionBuffers.ContinuousActions[16],actionBuffers.ContinuousActions[17],actionBuffers.ContinuousActions[18]/*, xSpring:360, xForce:360*/);
             AdjustJointRotation(Coude_LEFT_JOINT,ref Fatigue_Coude_LEFT, actionBuffers.ContinuousActions[19]);
             AdjustJointRotation(Coude_RIGHT_JOINT,ref Fatigue_Coude_RIGHT, actionBuffers.ContinuousActions[20]);
+            AdjustJointRotation(Torse_JOINT,ref Fatigue_Torse, actionBuffers.ContinuousActions[21]);
             
 
             UpdateFootPosition();
-            // ApplyStepReward();
+            //ApplyStepReward();
 
             float distanceToTargetRestante = Vector3.Distance(((Foot_LEFT.position + Foot_RIGHT.position)/2 + Head.position)/2, Target.position);
             float distanceParcourue = distanceToTargetAtStart - distanceToTargetRestante ;
             float proportionTravel = distanceParcourue / distanceToTargetAtStart ;
 
             float bonus = 0f;
-            if(faceOnTheFloor == 1 || faceOnTheFloor == 0)
-            {
-                bonus += CenterOfGravityReward();
-                if(bonus > 1.9)
-                {
-                    //Debug.Log("ADD head reward " + headOnTop(penality:0, baseValue:1, timeExpo:false));
-                    bonus += simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
-                }
-            }
-            else
-            {
-                bonus += simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
-            }
-
 
             //bonus += FlipTrain();
             //Debug.Log("CenterOfGravityReward " + CenterOfGravityReward());
@@ -266,14 +279,14 @@ public class RobotWalk : Agent
             //bonus = 1-Vector3.Dot(Torse.forward, Vector3.up);
             //bonus += proportionTravel * 10;
             //Debug.Log(proportionTravel*10);
-            //bonus+= isWalkingForward()*5;
+            //bonus+= isWalkingForward();
 
             //bonus+= headOnTop(penality:0, baseValue:1, timeExpo:false);
             //Debug.Log("headOnTop:" + headOnTop(penality:0, baseValue:1, timeExpo:false) + " -    " + Vector3.Angle(Cuisse_RIGHT.up, Vector3.up) );
             //bonus+= verticalStability(angle:45f, exposant:1f);
             //Debug.Log("verticalStability:" + verticalStability(45f, 1f));
 
-            bonus+= DistanceToTarget();
+            //bonus+= DistanceToTarget();
             // //Debug.Log("DistanceToTarget:"+DistanceToTarget());
             //Debug.Log("Bonus: "+ bonus);
             reward(bonus);
@@ -401,25 +414,21 @@ public class RobotWalk : Agent
         }
         if (Input.GetKey(KeyCode.RightArrow))
         {
-            // #Epaule
-            // continuousActionsOut[14] = 1.0f;
-            continuousActionsOut[0] = 1.0f;
-            continuousActionsOut[1] = 1.0f;
-            continuousActionsOut[19] = 1.0f;
-            continuousActionsOut[20] = 1.0f;
-            // continuousActionsOut[5] = 1.0f;
+            // continuousActionsOut[0] = 1.0f;
+            // continuousActionsOut[1] = 1.0f;
+            // continuousActionsOut[19] = 1.0f;
+            // continuousActionsOut[20] = 1.0f;
+            continuousActionsOut[21] = 1.0f;
+
         }
         else if (Input.GetKey(KeyCode.LeftArrow))
         {
             // #Epaule
-            continuousActionsOut[0] = -1.0f;
-            continuousActionsOut[1] = -1.0f;
-            continuousActionsOut[19] = -1.0f;
-            continuousActionsOut[20] = -1.0f;
-            // continuousActionsOut[0] = -1.0f; //Cuisse G levée
-            // continuousActionsOut[2] = -1.0f; // Genoux G Plié
-            // continuousActionsOut[1] = 1.0f; //Cuisse D Baissée
-            // continuousActionsOut[5] = 1.0f; // Genoux D Déplié
+            // continuousActionsOut[0] = -1.0f;
+            // continuousActionsOut[1] = -1.0f;
+            // continuousActionsOut[19] = -1.0f;
+            // continuousActionsOut[20] = -1.0f;
+            continuousActionsOut[21] = -1.0f;
         }
 
 
@@ -562,6 +571,7 @@ public class RobotWalk : Agent
         sensor.AddObservation(Coude_LEFT_JOINT.targetRotation.x/360);
         sensor.AddObservation(Abdos_JOINT.targetRotation.x/360);
         sensor.AddObservation(Abdos_JOINT.targetRotation.y/360);
+        sensor.AddObservation(Torse_JOINT.targetRotation.y/360);
         sensor.AddObservation(Head_JOINT.targetRotation.x/360);
         sensor.AddObservation(Head_JOINT.targetRotation.y/360);
         sensor.AddObservation(Bassin_JOINT.targetRotation.x/360);
@@ -872,11 +882,11 @@ public class RobotWalk : Agent
 
         return reward;
     }
-    private float simpleHeadOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
+    public float simpleHeadOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
     {
         float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
         float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
-        float tolerance = 2f;    // Tolérance au-delà de laquelle la récompense devient négative
+        float tolerance = 3f;    // Tolérance au-delà de laquelle la récompense devient négative
         float headHeight = Mathf.Abs(Head.position.y - ((Foot_LEFT.position.y + Foot_RIGHT.position.y)/2));
 
         float lowerBound = normanHeadHeight + minHeight;
@@ -1104,7 +1114,7 @@ public class RobotWalk : Agent
         }
     }
 
-    private float CenterOfGravityReward()
+    public float CenterOfGravityReward()
     {
         Vector3 currentCoG = CalculateCenterOfGravity(); // Assume que cela retourne le centre de gravité
         currentCoG = new Vector3(currentCoG.x, 0, currentCoG.z);
@@ -1143,34 +1153,47 @@ public class RobotWalk : Agent
                 //Debug.Log(PerpendicularDistanceFromGoC+2);
                 reward += PerpendicularDistanceFromGoC+2;
             }
-        }
-        else if ( leftFootContact.LeftFootOnFloor || rightFootContact.RightFootOnFloor)
-        {
-            // Un pied est levé
-            Transform supportingFoot = leftFootContact.LeftFootOnFloor ? Foot_LEFT : Foot_RIGHT;
-            Vector3 supportingFootZero = new Vector3(supportingFoot.position.x, 0f, supportingFoot.position.z+0.2f);
-            float distanceToSupportingFoot = leftFootContact.LeftFootOnFloor ? distanceToCoGFromLeftFoot : distanceToCoGFromRightFoot;
-            float distanceZ = Math.Abs(currentCoG.z - supportingFootZero.z);
-            float distanceX = Math.Abs(currentCoG.x - supportingFootZero.x);
-            float supportingFootAngle = leftFootContact.LeftFootOnFloor ? leftFootAngle : rightFootAngle;
-            if(supportingFootAngle < 45)
+            if(leftFootParallel && rightFootParallel)
             {
-                float CustomPerpendicularDistanceFromGoC = PerpendicularDistanceFromGoC - 0.2f;
-                if(PerpendicularDistanceFromGoC >= 0)
-                {
-                    //Debug.Log(2 -CustomPerpendicularDistanceFromGoC + " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
-                    reward += 2 -CustomPerpendicularDistanceFromGoC;
-                }
-                else
-                {
-                    //Debug.Log(CustomPerpendicularDistanceFromGoC+2+ " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
-                    reward += CustomPerpendicularDistanceFromGoC+2;
-                }
+                reward += 1f;
             }
             else
             {
-                reward -= 0.1f;
+                reward -= 1f;
             }
+        }
+        else
+        {
+            reward-= 0.1f;
+        }
+        return reward;
+        // else if ( leftFootContact.LeftFootOnFloor || rightFootContact.RightFootOnFloor)
+        // {
+        //     // Un pied est levé
+        //     Transform supportingFoot = leftFootContact.LeftFootOnFloor ? Foot_LEFT : Foot_RIGHT;
+        //     Vector3 supportingFootZero = new Vector3(supportingFoot.position.x, 0f, supportingFoot.position.z+0.2f);
+        //     float distanceToSupportingFoot = leftFootContact.LeftFootOnFloor ? distanceToCoGFromLeftFoot : distanceToCoGFromRightFoot;
+        //     float distanceZ = Math.Abs(currentCoG.z - supportingFootZero.z);
+        //     float distanceX = Math.Abs(currentCoG.x - supportingFootZero.x);
+        //     float supportingFootAngle = leftFootContact.LeftFootOnFloor ? leftFootAngle : rightFootAngle;
+        //     if(supportingFootAngle < 45)
+        //     {
+        //         float CustomPerpendicularDistanceFromGoC = PerpendicularDistanceFromGoC - 0.2f;
+        //         if(PerpendicularDistanceFromGoC >= 0)
+        //         {
+        //             //Debug.Log(2 -CustomPerpendicularDistanceFromGoC + " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+        //             reward += 2 -CustomPerpendicularDistanceFromGoC;
+        //         }
+        //         else
+        //         {
+        //             //Debug.Log(CustomPerpendicularDistanceFromGoC+2+ " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+        //             reward += CustomPerpendicularDistanceFromGoC+2;
+        //         }
+        //     }
+        //     else
+        //     {
+        //         reward -= 0.1f;
+        //     }
             /*
                 //Calcule la distance entre un point et la parallel entre les deux pieds sur le plan horizontale
                 Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z);
@@ -1188,14 +1211,14 @@ public class RobotWalk : Agent
                 float distanceFromPointToLine = Mathf.Abs(Vector2.Dot(pointToLineStart, perpendicular.normalized));
             */
 
-        }
-        else
-        {
-            reward = -1f;
-        }
+        //}
+        // else
+        // {
+        //     reward = -1f;
+        // }
 
         // Appliquez la récompense ou la pénalité
-        return reward;
+        //return reward;
     }
     void OnDrawGizmos()
     {

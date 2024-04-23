@@ -130,12 +130,12 @@ public class BodyPartManager : MonoBehaviour
 
                 // Réinitialiser les Rigidbody de manière sûre
                 var rb = child.Key.GetComponent<Rigidbody>();
+                child.Key.localPosition = child.Value.position;
                 if (rb != null && rb.isKinematic == false)
                 {
                     // rb.velocity = Vector3.zero;
                     // rb.angularVelocity = Vector3.zero;
                     rb.isKinematic = true; // Rendre cinématique temporairement
-                    child.Key.localPosition = child.Value.position;
                     child.Key.localRotation = child.Value.rotation;
                     StartCoroutine(ReleaseKinematic(rb, 0.05f));
                 }

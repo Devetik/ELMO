@@ -1,0 +1,33 @@
+    curriculum:
+      Lesson1:
+        completion_criteria:
+          measure: reward
+          threshold: 500
+          min_lesson_length: 100
+          signal_smoothing: true
+        parameters:
+          difficulty: 0.1
+      Lesson2:
+        completion_criteria:
+          measure: reward
+          threshold: 1500
+          min_lesson_length: 200
+          signal_smoothing: true
+        parameters:
+          difficulty: 0.5
+      Lesson3:
+        completion_criteria:
+          measure: reward
+          threshold: 2000
+          min_lesson_length: 300
+          signal_smoothing: true
+        parameters:
+          difficulty: 1.0
+      Lesson4:
+        completion_criteria:
+          measure: reward
+          threshold: 2500
+          min_lesson_length: 400
+          signal_smoothing: true
+        parameters:
+          difficulty: 2.0

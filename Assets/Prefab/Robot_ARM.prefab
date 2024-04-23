@@ -2141,7 +2141,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 0
+  MaxStep: 1000
   Agent: {fileID: 5856656882466078081}
   EnvToReset: {fileID: 0}
   Target: {fileID: 0}
@@ -2166,12 +2166,15 @@ MonoBehaviour:
   Shoulder_LEFT: {fileID: 8413808359421391051}
   Shoulder_RIGHT: {fileID: 3581150796307445121}
   Head_JOINT: {fileID: 1197718277990064948}
+  Foot_LEFT_JOINT: {fileID: 0}
+  Foot_RIGHT_JOINT: {fileID: 0}
   Tibias_LEFT_JOINT: {fileID: 2619891136068407512}
   Tibias_RIGHT_JOINT: {fileID: 4305703732123382160}
   Cuisse_LEFT_JOINT: {fileID: 5887382244720979566}
   Cuisse_RIGHT_JOINT: {fileID: 8905704386793287481}
   Bassin_JOINT: {fileID: 573873919675374048}
   Abdos_JOINT: {fileID: 573873919675374048}
+  Torse_JOINT: {fileID: 0}
   Shoulder_LEFT_JOINT: {fileID: 8056910506615624901}
   Shoulder_RIGHT_JOINT: {fileID: 1951175663343157020}
   Coude_LEFT_JOINT: {fileID: 5005256401091974594}

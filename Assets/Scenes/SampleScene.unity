@@ -281,6 +281,10 @@ PrefabInstance:
       propertyPath: raySensor
       value: 
       objectReference: {fileID: 796627486}
+    - target: {fileID: 2925166166284746392, guid: 4bf3fb00522ab6d4e87dd12f265b8126, type: 3}
+      propertyPath: currentLesson
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3443401075837184159, guid: 4bf3fb00522ab6d4e87dd12f265b8126, type: 3}
       propertyPath: m_IsKinematic
       value: 0
@@ -357,10 +361,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2059639074260441783, guid: 4bf3fb00522ab6d4e87dd12f265b8126, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2925166166284746392, guid: 4bf3fb00522ab6d4e87dd12f265b8126, type: 3}
-      propertyPath: MaxStep
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2925166166284746392, guid: 4bf3fb00522ab6d4e87dd12f265b8126, type: 3}
