@@ -1,4 +1,9 @@
-/DevetikENV
 /Library
 /results
 /Temp
+DevetikENV/*
+!DevetikENV/Lib/
+DevetikENV/Lib/*
+!DevetikENV/Lib/site-packages/
+DevetikENV/Lib/site-packages/*
+!DevetikENV/Lib/site-packages/mlagents/

@@ -16,6 +16,7 @@ using Unity.VisualScripting;
 
 public class RobotWalk : Agent
 {
+    public StatsRecorder wakeUp;
     private StepReward stepReward;
     string filePath = @"C:/Dev/Unity_ML-Agents/V3/ELMO/curriculum_step.txt";
     private VariableCustom vc;
@@ -140,6 +141,7 @@ public class RobotWalk : Agent
 
     public override void Initialize()
     {
+        wakeUp = Academy.Instance.StatsRecorder;
         stepReward = new StepReward(this);
         vc = new VariableCustom(this);
         bodyPartManager = Agent.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `Agent`
