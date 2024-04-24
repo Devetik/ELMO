@@ -11,6 +11,7 @@ using System.Net.Http.Headers;
 using UnityEditor;
 using TMPro;
 using Unity.VisualScripting;
+using Unity.MLAgents.SideChannels;
 
 
 
@@ -138,10 +139,10 @@ public class RobotWalk : Agent
     public Quaternion startRotation;
 
 
-
     public override void Initialize()
     {
         wakeUp = Academy.Instance.StatsRecorder;
+
         stepReward = new StepReward(this);
         vc = new VariableCustom(this);
         bodyPartManager = Agent.GetComponent<BodyPartManager>(); // Assurez-vous que le composant est attaché à `Agent`
@@ -180,14 +181,14 @@ public class RobotWalk : Agent
         //lastDistanceToTarget = 0;
         firstStep = false;
 
-
+        (Vector3 startPosition, Quaternion startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.random);
         if (bodyPartManager == null)
         {
             Debug.LogError("bodyPartManager is not assigned.");
         }
         else
         {
-            bodyPartManager.ResetParts(vc.positionRandom, vc.rotationRandom);
+            bodyPartManager.ResetParts((startPosition, startRotation));
         }
         Pressure_Plate.gameObject.SetActive(true);
     }
@@ -216,6 +217,8 @@ public class RobotWalk : Agent
             {
                 Console.WriteLine("An error occurred while reading the file:");
             }
+
+            AddLog("Average Head Height", Head.position.y);
 
             switch (curriculumStep)
             {
@@ -1328,6 +1331,11 @@ public class RobotWalk : Agent
                 return -1;
             }
         }
+    }
+
+    public void AddLog(string def, float value, StatAggregationMethod type=StatAggregationMethod.Average)
+    {
+        Academy.Instance.StatsRecorder.Add(def, value, type);
     }
 }
 

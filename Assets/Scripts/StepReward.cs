@@ -271,11 +271,10 @@ public class StepReward
             bonus += 50f;
             Debug.Log("L'agent s'est levé !!!");
             agent.reward(bonus);
-            agent.wakeUp.Add("wakeup/Step", 1f);
+            agent.AddLog("Goal", 1f, Unity.MLAgents.StatAggregationMethod.Sum);
             agent.EndEpisode();
         }
         bonus += (-0.1f*agent.StepCount) / agent.MaxStep;
-        Debug.Log((-0.1f*agent.StepCount) / agent.MaxStep);
         agent.reward(bonus);
     }
 }

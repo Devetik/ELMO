@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,6 +23,24 @@ public class VariableCustom
     public VariableCustom(StepReward stepReward)
     {
         this.stepReward = stepReward;
+    }
+    public enum PositionType
+    {
+        coucheFace,
+        coucheDos,
+        debout,
+        random
+    }
+
+    public (Vector3, Quaternion) GetRandomPosition(PositionType positiontype)
+    {
+        if(positiontype == PositionType.random)
+        {
+            Vector3 positionRandom = new Vector3(0,5,-40);
+            Quaternion rotationRandom = Quaternion.Euler(UnityEngine.Random.Range(-90,90), UnityEngine.Random.Range(-90,90), UnityEngine.Random.Range(-90,90));
+            return (positionRandom, rotationRandom);
+        }
+        return (positionDebout,rotationDebout);
     }
 
 

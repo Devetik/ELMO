@@ -116,8 +116,10 @@ public class BodyPartManager : MonoBehaviour
         }
     }
 
-    public void ResetParts(Vector3 newPosition, Quaternion newRotation)
+    public void ResetParts((Vector3 position, Quaternion rotation) positionRotationTuple)
     {
+        Vector3 newPosition = positionRotationTuple.position;
+        Quaternion newRotation = positionRotationTuple.rotation;
         if (parent != null)
         {
             // Déplacer et faire pivoter le parent à la nouvelle position et orientation
