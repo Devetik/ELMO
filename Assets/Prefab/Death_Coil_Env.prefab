@@ -131,7 +131,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 325209949689750253}
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 0, z: 0.02}
+  m_LocalPosition: {x: 0, y: 0, z: 0.0101}
   m_LocalScale: {x: -0.06, y: -0.06, z: -0.06}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1450,6 +1450,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: 776397620535363326, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: m_InferenceDevice
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 776397620535363326, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: m_BrainParameters.VectorObservationSize
       value: 342
       objectReference: {fileID: 0}
@@ -1561,6 +1565,10 @@ PrefabInstance:
       propertyPath: Target
       value: 
       objectReference: {fileID: 8173096288614869744}
+    - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
+      propertyPath: MaxStep
+      value: 300
+      objectReference: {fileID: 0}
     - target: {fileID: 5854103176010986562, guid: 8a13802d41b393c43a3effb056701379, type: 3}
       propertyPath: Torse_JOINT
       value: 
