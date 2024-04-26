@@ -385,7 +385,7 @@ Transform:
   m_GameObject: {fileID: 657209306592468596}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.301, z: -40}
+  m_LocalPosition: {x: 0, y: 0, z: 5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -703,10 +703,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 342
+    VectorObservationSize: 353
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 22
+      m_NumContinuousActions: 24
       BranchSizes: 01000000
     VectorActionSize: 
     VectorActionDescriptions: []
@@ -735,7 +735,7 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 2000
+  MaxStep: 500
   Agent: {fileID: 2485507344499392557}
   EnvToReset: {fileID: 0}
   Target: {fileID: 1305685699509939875}
@@ -773,7 +773,10 @@ MonoBehaviour:
   Shoulder_RIGHT_JOINT: {fileID: 3346811541081696443}
   Coude_LEFT_JOINT: {fileID: 261556459079237555}
   Coude_RIGHT_JOINT: {fileID: 453109802690989180}
-  normanHeadHeight: 3.77
+  TempsSession: 0
+  decayRate: 0
+  normalHeadHeight: 4.12
+  normalTorseHeight: 3.25
   leftFootContact: {fileID: 7803655405526828757}
   rightFootContact: {fileID: 7194276509761121449}
   leftTibiasContact: {fileID: 3473137541439779504}
@@ -789,6 +792,8 @@ MonoBehaviour:
   backwardPenalty: -0.1
   leftFootParallel: 0
   rightFootParallel: 0
+  leftFootAngle: 0
+  rightFootAngle: 0
   bodyParts:
   - {fileID: 2310543559116461883}
   - {fileID: 7487044097782436503}
@@ -811,7 +816,11 @@ MonoBehaviour:
   - {fileID: 4986479840448710628}
   - {fileID: 167945422628531803}
   PerpendicularDistanceFromGoC: 0
+  distanceToCoGFromLeftFoot: 0
+  distanceToCoGFromRightFoot: 0
   textPlateforme: {fileID: 5452241982624448856}
+  currentProportionalHeadHeight: 0
+  currentHeadHeight: 0
   faceOnTheFloor: 0
   startPosition: {x: 0, y: 0, z: 0}
   startRotation: {x: 0, y: 0, z: 0, w: 0}
@@ -880,7 +889,7 @@ Transform:
   m_GameObject: {fileID: 1118386450155751870}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 41.11}
+  m_LocalPosition: {x: 0, y: 0, z: 28.17}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1991,7 +2000,7 @@ Transform:
   m_GameObject: {fileID: 2099243221642334683}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: -1, z: 18.05}
+  m_LocalPosition: {x: 0, y: -1, z: 14.43}
   m_LocalScale: {x: 4, y: 0.3, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []

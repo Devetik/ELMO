@@ -63,13 +63,13 @@ public class RobotWalk : Agent
     public ConfigurableJoint Shoulder_RIGHT_JOINT;
     public ConfigurableJoint Coude_LEFT_JOINT;
     public ConfigurableJoint Coude_RIGHT_JOINT;
-    private float TempsSession = 0f;
+    public float TempsSession = 0f;
     private float initialReward = 1.0f;
-    private float decayRate = 0.05f;
-    private float currentReward;
+    public float decayRate;
     private Vector3 lastPosition;
     private float distanceToTargetAtStart;
-    public float normanHeadHeight = 3.77f;
+    public float normalHeadHeight = 4.10f;
+    public float normalTorseHeight = 3.25f;
     public FootContact leftFootContact;
     public FootContact rightFootContact;
     public FootContact leftTibiasContact;
@@ -107,6 +107,8 @@ public class RobotWalk : Agent
     private float Fatigue_Bassin = 0.0f;
     private float Fatigue_Abdos = 0.0f;
     private float Fatigue_Torse = 0.0f;
+    private float Fatigue_Foot_LEFT = 0.0f;
+    private float Fatigue_Foot_RIGHT = 0.0f;
     private float Fatigue_Shoulder_LEFT = 0.0f;
     private float Fatigue_Shoulder_RIGHT = 0.0f;
     private float Fatigue_Coude_RIGHT = 0.0f;
@@ -124,14 +126,16 @@ public class RobotWalk : Agent
     private int maxEnchainements = 1;
     public bool leftFootParallel = false;
     public bool rightFootParallel = false;
-    private float leftFootAngle = 0f;
-    private float rightFootAngle = 0f;
+    public float leftFootAngle = 0f;
+    public float rightFootAngle = 0f;
     public Rigidbody[] bodyParts;
     public float PerpendicularDistanceFromGoC = 0f;
-    float distanceToCoGFromLeftFoot  = 0f;
-    float distanceToCoGFromRightFoot = 0f;
+    public float distanceToCoGFromLeftFoot  = 0f;
+    public float distanceToCoGFromRightFoot = 0f;
     public TextMeshPro textPlateforme;
     private float maxHeadHeight = 2f;
+    public float currentProportionalHeadHeight = 0f;
+    public float currentHeadHeight = 0f;
     private bool hasLanded = false;
     public int faceOnTheFloor;
     private int curriculumStep;
@@ -156,8 +160,9 @@ public class RobotWalk : Agent
         distanceToTargetAtStart = Vector3.Distance((Foot_LEFT.position + Foot_RIGHT.position)/2, Target.position);
         lastPosition = Torse.position;
         lastRotation = Torse.rotation;
-        startPosition = new Vector3(0,0.05f,-20);
+        startPosition = new Vector3(0,0.5f,5);
         startRotation = new Quaternion(0f,0f,0f,0f);
+        //Pressure_Plate.localPosition = new Vector3(UnityEngine.Random.Range(-25,25),-1f,UnityEngine.Random.Range(-14,-64));
     }
     public override void OnEpisodeBegin()
     {
@@ -175,13 +180,17 @@ public class RobotWalk : Agent
         Fatigue_Shoulder_RIGHT = 100.0f;
         Fatigue_Coude_RIGHT = 100.0f;
         Fatigue_Coude_LEFT = 100.0f;
+        Fatigue_Foot_RIGHT = 100.0f;
+        Fatigue_Foot_LEFT = 100.0f;
         runNumber++;
         TempsSession = 0f;
-        currentReward = 1f;
+        decayRate = 1f;
         //lastDistanceToTarget = 0;
         firstStep = false;
-
-        (Vector3 startPosition, Quaternion startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.random);
+        if(startPosition == null)
+        {
+            (Vector3 startPosition, Quaternion startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.deboutDroit);
+        }
         if (bodyPartManager == null)
         {
             Debug.LogError("bodyPartManager is not assigned.");
@@ -193,10 +202,14 @@ public class RobotWalk : Agent
         Pressure_Plate.gameObject.SetActive(true);
     }
 
-    public void reward(float value)
+    public void reward(float value, string title="",StatAggregationMethod type=StatAggregationMethod.Sum)
     {
         AddReward(value);
         colorChanger.UpdateColorBasedOnReward(value);
+        if(title != "")
+        {
+            AddLog(title, value, type);
+        }
     }
 
 
@@ -226,13 +239,13 @@ public class RobotWalk : Agent
                     stepReward.Custom();
                     break;
                 case 0:
-                    stepReward.RiseBassin();
+                    stepReward.Stability(); // -> 1000 pts
                     break;
                 case 1:
-                    stepReward.CenterOfGravity();
+                    stepReward.Walk();
                     break;
                 case 2:
-                    stepReward.RiseBody();
+                    stepReward.WakeUp();
                     break;
                 case 3:
                     stepReward.RiseFromBack();
@@ -246,9 +259,8 @@ public class RobotWalk : Agent
             }
 
             TempsSession += Time.fixedDeltaTime;
-            currentReward = Mathf.Max(0, initialReward - decayRate * TempsSession);
-            // ApplyRotation(Foot_LEFT_JOINT,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[0], actionBuffers.ContinuousActions[1]);
-            // ApplyRotation(Foot_RIGHT_JOINT, ref Fatigue_Foot_RIGHT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3]);
+            decayRate = 1f - ((float)StepCount / (float)MaxStep);
+
             AdjustJointRotation(Tibias_LEFT_JOINT,ref Fatigue_Tibias_LEFT, actionBuffers.ContinuousActions[0]);
             AdjustJointRotation(Tibias_RIGHT_JOINT,ref Fatigue_Tibias_RIGHT, actionBuffers.ContinuousActions[1]);
             AdjustJointRotation(Cuisse_LEFT_JOINT, ref Fatigue_Cuisse_LEFT, actionBuffers.ContinuousActions[2],actionBuffers.ContinuousActions[3],actionBuffers.ContinuousActions[4]);
@@ -257,10 +269,12 @@ public class RobotWalk : Agent
             AdjustJointRotation(Abdos_JOINT,ref Fatigue_Abdos, actionBuffers.ContinuousActions[10]);
             AdjustJointRotation(Head_JOINT,ref Fatigue_Head, actionBuffers.ContinuousActions[11],actionBuffers.ContinuousActions[12]);
             AdjustJointRotation(Shoulder_LEFT_JOINT, ref Fatigue_Shoulder_LEFT, actionBuffers.ContinuousActions[13],actionBuffers.ContinuousActions[14],zValue:actionBuffers.ContinuousActions[15], xSpring:360, xForce:360);
-            AdjustJointRotation(Shoulder_RIGHT_JOINT, ref Fatigue_Shoulder_RIGHT, actionBuffers.ContinuousActions[16],actionBuffers.ContinuousActions[17],actionBuffers.ContinuousActions[18]/*, xSpring:360, xForce:360*/);
+            AdjustJointRotation(Shoulder_RIGHT_JOINT, ref Fatigue_Shoulder_RIGHT, actionBuffers.ContinuousActions[16],actionBuffers.ContinuousActions[17],actionBuffers.ContinuousActions[18], xSpring:360, xForce:360);
             AdjustJointRotation(Coude_LEFT_JOINT,ref Fatigue_Coude_LEFT, actionBuffers.ContinuousActions[19]);
             AdjustJointRotation(Coude_RIGHT_JOINT,ref Fatigue_Coude_RIGHT, actionBuffers.ContinuousActions[20]);
             AdjustJointRotation(Torse_JOINT,ref Fatigue_Torse, actionBuffers.ContinuousActions[21]);
+            AdjustJointRotation(Foot_LEFT_JOINT,ref Fatigue_Foot_LEFT, actionBuffers.ContinuousActions[22]);
+            AdjustJointRotation(Foot_RIGHT_JOINT,ref Fatigue_Foot_RIGHT, actionBuffers.ContinuousActions[23]);
             
 
             UpdateFootPosition();
@@ -279,10 +293,13 @@ public class RobotWalk : Agent
             + Fatigue_Shoulder_LEFT + Fatigue_Shoulder_RIGHT
             + Fatigue_Coude_LEFT + Fatigue_Coude_RIGHT
             + Fatigue_Cuisse_LEFT + Fatigue_Cuisse_RIGHT
-            + Fatigue_Tibias_LEFT + Fatigue_Tibias_RIGHT) /1100;
+            + Fatigue_Tibias_LEFT + Fatigue_Tibias_RIGHT
+            + Fatigue_Foot_LEFT + Fatigue_Foot_RIGHT) /1300;
+            //reward(fatiguePenalty);
+            //Debug.Log(fatiguePenalty);
             //bonus+= fatiguePenalty;
             //bonus = 1-Vector3.Dot(Torse.forward, Vector3.up);
-            //bonus += proportionTravel * 10;
+            //bonus += proportionTravel;
             //Debug.Log(proportionTravel*10);
             //bonus+= isWalkingForward();
 
@@ -423,7 +440,7 @@ public class RobotWalk : Agent
             // continuousActionsOut[1] = 1.0f;
             // continuousActionsOut[19] = 1.0f;
             // continuousActionsOut[20] = 1.0f;
-            continuousActionsOut[21] = 1.0f;
+            continuousActionsOut[17] = 1.0f;
 
         }
         else if (Input.GetKey(KeyCode.LeftArrow))
@@ -433,7 +450,7 @@ public class RobotWalk : Agent
             // continuousActionsOut[1] = -1.0f;
             // continuousActionsOut[19] = -1.0f;
             // continuousActionsOut[20] = -1.0f;
-            continuousActionsOut[21] = -1.0f;
+            continuousActionsOut[17] = -1.0f;
         }
 
 
@@ -465,21 +482,21 @@ public class RobotWalk : Agent
         }
     }
 
-    private void MeasureGroundDistance(VectorSensor sensor, Transform footTransform, string partName, float maxDistance)
+    private float MeasureGroundDistance(Transform footTransform, float maxDistance)
     {
         RaycastHit hit;
-        //float maxDistance = 5.0f;  // Choisissez une distance maximale appropriée
         int groundLayerMask = 1 << LayerMask.NameToLayer("Devetik_Floor");  // Assurez-vous que ce layer est correctement configuré
 
         // Envoyer un rayon depuis chaque pied vers le bas
         if (Physics.Raycast(footTransform.position, Vector3.down, out hit, maxDistance, groundLayerMask))
         {
             float groundHeight = hit.distance;
-            sensor.AddObservation(groundHeight/maxDistance);  // Ajouter la distance au sol pour ce pied
+
+            return groundHeight/maxDistance;  // Ajouter la distance au sol pour ce pied
         }
         else
         {
-            sensor.AddObservation(maxDistance/maxDistance);  // Aucun sol détecté dans la limite de distance
+            return maxDistance/maxDistance;  // Aucun sol détecté dans la limite de distance
         }
     }
     public override void CollectObservations(VectorSensor sensor)
@@ -490,10 +507,11 @@ public class RobotWalk : Agent
         //Debug.Log(this.transform.localPosition/10f + " " + this.transform.rotation.eulerAngles/360);
         sensor.AddObservation(OrientationTorseFloor());
 
-        MeasureGroundDistance(sensor, transform, "Transform", 4f);
-        MeasureGroundDistance(sensor, Torse, "Torse", 4f);
-        MeasureGroundDistance(sensor, Foot_LEFT, "Pied.L", 2f);
-        MeasureGroundDistance(sensor, Foot_RIGHT, "Pied.R", 2f);
+        sensor.AddObservation(MeasureGroundDistance(transform, 4f));
+        sensor.AddObservation(MeasureGroundDistance(Torse, normalTorseHeight));
+        sensor.AddObservation(MeasureGroundDistance(Foot_LEFT, 2f));
+        sensor.AddObservation(MeasureGroundDistance(Foot_RIGHT, 2f));
+        sensor.AddObservation(currentProportionalHeadHeight);
 
         sensor.AddObservation(CalculateCenterOfGravity());
 
@@ -532,11 +550,11 @@ public class RobotWalk : Agent
         sensor.AddObservation(bassinContact.BassinOnFloor ? 1.0f : 0.0f);
 
         // Distance et direction vers la cible
-        Vector3 toTarget = (Target.position - Torse.position);
+        Vector3 toTarget = (Target.position - ((Foot_LEFT.position + Foot_RIGHT.position)/2));
         sensor.AddObservation(toTarget.normalized);
         sensor.AddObservation(toTarget.magnitude / 100f);
 
-        Vector3 toPlate = (Pressure_Plate.position - Torse.position);
+        Vector3 toPlate = (Pressure_Plate.position - ((Foot_LEFT.position + Foot_RIGHT.position)/2));
         sensor.AddObservation(toPlate.normalized);
         sensor.AddObservation(toPlate.magnitude / 100f);
 
@@ -544,8 +562,6 @@ public class RobotWalk : Agent
         sensor.AddObservation(TempsSession / 1000f);
 
         sensor.AddObservation(Fatigue_Head / MaxFatigue);
-        // sensor.AddObservation(Fatigue_Foot_LEFT / MaxFatigue);
-        // sensor.AddObservation(Fatigue_Foot_RIGHT / MaxFatigue);
         sensor.AddObservation(Fatigue_Tibias_LEFT / MaxFatigue);
         sensor.AddObservation(Fatigue_Tibias_RIGHT / MaxFatigue);
         sensor.AddObservation(Fatigue_Cuisse_LEFT / MaxFatigue);
@@ -557,6 +573,8 @@ public class RobotWalk : Agent
         sensor.AddObservation(Fatigue_Shoulder_RIGHT / MaxFatigue);
         sensor.AddObservation(Fatigue_Coude_LEFT / MaxFatigue);
         sensor.AddObservation(Fatigue_Coude_RIGHT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Foot_LEFT / MaxFatigue);
+        sensor.AddObservation(Fatigue_Foot_RIGHT / MaxFatigue);
 
         sensor.AddObservation(Tibias_LEFT_JOINT.targetRotation.x/360);
         sensor.AddObservation(Tibias_RIGHT_JOINT.targetRotation.x/360);
@@ -591,6 +609,14 @@ public class RobotWalk : Agent
         midpoint = new Vector3(midpoint.x, 0, midpoint.z);
         float distanceToMidpoint = Vector3.Distance(currentCoG, midpoint);
         sensor.AddObservation(distanceToMidpoint);
+        sensor.AddObservation(((((Bassin.position.z + midpoint.z)/2) + Head.position.z)/2)-currentCoG.z);
+        sensor.AddObservation(Hand_LEFT.position.z - currentCoG.z);
+        sensor.AddObservation(Hand_RIGHT.position.z - currentCoG.z);
+        sensor.AddObservation(Head.position.z - currentCoG.z);
+        sensor.AddObservation(Torse.position.z - currentCoG.z);
+        sensor.AddObservation(Bassin.position.z - currentCoG.z);
+        sensor.AddObservation(Foot_LEFT.position.z - currentCoG.z);
+        sensor.AddObservation(Foot_RIGHT.position.z - currentCoG.z);
     }
     private void AddBodyPartObservation(Transform bodyPart, VectorSensor sensor)
     {
@@ -614,71 +640,48 @@ public class RobotWalk : Agent
         {
             reward(10000f);
             Debug.Log("TARGET TOUCHED !");
+            AddLog("Target", 1f, Unity.MLAgents.StatAggregationMethod.Sum);
             EndEpisode();
         }
         if(other.gameObject.name == "Plate")
         {
-            reward(100f);
-            Debug.Log("Plate Activated !");
+            reward(100f * currentProportionalHeadHeight, "Plate");
             Pressure_Plate.gameObject.SetActive(false);
+            //Pressure_Plate.localPosition = new Vector3(UnityEngine.Random.Range(-25,25),-1f,UnityEngine.Random.Range(-14,-64));
         }
-        if(other.gameObject.name == "Floor" && bodyPartName != "Pied.R" && bodyPartName != "Pied.L" && bodyPartName != "Tibias.R" && bodyPartName != "Tibias.L")
+        if(other.gameObject.name == "Floor" && bodyPartName != "Pied.R" && bodyPartName != "Pied.L" )
         {
 
             if(bodyPartName == "Bassin")
             {
-                //reward(-5000 / (TempsSession + 1f));
+                reward(-1f);
                 //EndEpisode();
                 //reward(-1f);
             }
             if(bodyPartName == "Torse")
             {
-                //reward(-0.5f);
+                reward(-2f);
             }
             if(bodyPartName == "Abdos")
             {
-                //reward(-0.5f);
+                reward(-2f);
             }
             if(bodyPartName == "Head")
             {
-                //reward(-0.75f);
+                reward(-2f);
+            }
+            if(bodyPartName == "Tibias.R" || bodyPartName == "Tibias.L")
+            {
+                reward(-1f);
             }
             if(bodyPartName == "Main.R" || bodyPartName == "Main.L")
             {
-                //reward(-0.05f);
+                reward(-1f);
             }
-
-            //reward(-50f);
-            // reward(-5000f / (TempsSession + 1));
-            // EndEpisode();
-            // if(bodyPartName != "Main.R" && bodyPartName != "Main.L" && bodyPartName != "Head" && resetInProgress == false)
-            // {
-            //     reward(-1000f / (TempsSession +1) );
-            //     //EndEpisode();
-            //     resetInProgress = true;
-            //     StartCoroutine(endEpisodeIfHeadNotRise(6f));
-            // }
-            // if(bodyPartName == "Main.L" || bodyPartName == "Main.R")
-            // {
-            //     reward(-30f);
-            // }
-            // if(bodyPartName == "Head")
-            // {
-            //     reward(-60f);
-            //     // reward(-3000f / ((int)TempsSession + 1));
-            //     // Debug.Log(-3000f / ((int)TempsSession + 1));
-            //     // EndEpisode();
-            // }
-            // else if (resetInProgress == false)
-            // {
-            //     // resetInProgress = true;
-            //     // reward(-3f);
-            //     // StartCoroutine(endEpisodeIfHeadNotRise(3f));
-            // }
         }
-        else
+        else if(other.gameObject.name == "Floor" && (bodyPartName == "Pied.R" || bodyPartName == "Pied.L"))
         {
-            //OnTriggerEnter(other);
+            reward(1f);
         }
     }
 
@@ -686,7 +689,7 @@ public class RobotWalk : Agent
     {
         yield return new WaitForSeconds(time);
         //resetInProgress = false;
-        if(Head.localPosition.y < (normanHeadHeight * 0.6f))
+        if(Head.localPosition.y < (normalHeadHeight * 0.6f))
         {
             EndEpisode();
         }
@@ -696,7 +699,7 @@ public class RobotWalk : Agent
         if(other.gameObject.tag == "Walls")
         {
             //Debug.Log("Wall");
-            reward(-1f);
+            reward(-1000f);
             EndEpisode();
         }
     }
@@ -713,14 +716,14 @@ public class RobotWalk : Agent
         // Récompenser ou pénaliser en fonction de la direction du déplacement
         if (forwardDistance > 0.01f)
         {
-            ret -= 5f;
+            ret -= 0.1f;
             log = "Arrière";
         }
         else if (forwardDistance < -0.01f)
         {
             //ret += 5f;
-            ret += System.Math.Abs(forwardDistance * 50f + 1f);
-            log = "Avant" + System.Math.Abs(forwardDistance * 50f + 5f);
+            ret += System.Math.Abs(forwardDistance  + 1f);
+            log = "Avant" + System.Math.Abs(forwardDistance + 1f);
         }
         else
         {
@@ -781,8 +784,8 @@ public class RobotWalk : Agent
 
         float headHeight = Mathf.Abs(Head.position.y - ((Foot_LEFT.position.y + Foot_RIGHT.position.y)/2));
 
-        float lowerBound = normanHeadHeight + minHeight;
-        float upperBound = normanHeadHeight + maxHeight;
+        float lowerBound = normalHeadHeight + minHeight;
+        float upperBound = normalHeadHeight + maxHeight;
 
         // Calculer la distance hors de la plage optimale
         float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
@@ -894,8 +897,8 @@ public class RobotWalk : Agent
         float tolerance = 3f;    // Tolérance au-delà de laquelle la récompense devient négative
         float headHeight = Mathf.Abs(Head.position.y - ((Foot_LEFT.position.y + Foot_RIGHT.position.y)/2));
 
-        float lowerBound = normanHeadHeight + minHeight;
-        float upperBound = normanHeadHeight + maxHeight;
+        float lowerBound = normalHeadHeight + minHeight;
+        float upperBound = normalHeadHeight + maxHeight;
 
         // Calculer la distance hors de la plage optimale
         float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
@@ -1007,8 +1010,9 @@ public class RobotWalk : Agent
         }
     }
 
-    void ApplyStepReward()
+    public float ApplyStepReward()
     {
+        float bonus = 0f;
         if(enchainementStep > maxEnchainements)
         {
             Debug.Log("ID:" + agentID + " - " + enchainementStep);
@@ -1020,11 +1024,11 @@ public class RobotWalk : Agent
             if(firstStep == true)
             {
                 firstStep = false;
-                reward(50f);
+                bonus += 1f;
             }
             else
             {
-                reward(1f);  // Récompense pour maintenir un pied devant l'autre
+                bonus += 1f;  // Récompense pour maintenir un pied devant l'autre
             }
             enchainementStep++;
             stepInProgressLeft = false;
@@ -1033,7 +1037,7 @@ public class RobotWalk : Agent
         else if (timeSinceLastStepLeft >= maxStepDuration)
         {
             //Debug.Log("stagne");
-            reward(-1f);
+            bonus -= 1f;
             timeSinceLastStepLeft = 0;  // Réinitialiser pour éviter des pénalités continues
             stepInProgressLeft = false;
         }
@@ -1042,11 +1046,11 @@ public class RobotWalk : Agent
             if(firstStep == true)
             {
                 firstStep = false;
-                reward(50f);
+                bonus += 1f;
             }
             else
             {
-                reward(1f);  // Récompense pour maintenir un pied devant l'autre
+                bonus += 1f;  // Récompense pour maintenir un pied devant l'autre
             }
             enchainementStep++;
             stepInProgressRight = false;
@@ -1055,10 +1059,11 @@ public class RobotWalk : Agent
         else if (timeSinceLastStepRight >= maxStepDuration)
         {
             //Debug.Log("stagne");
-            reward(-1f);
+            bonus -= 1f;
             timeSinceLastStepRight = 0;  // Réinitialiser pour éviter des pénalités continues
             stepInProgressRight = false;
         }
+        return bonus;
     }
     // private Vector3 CalculateCenterOfGravity()
     // {
@@ -1112,11 +1117,18 @@ public class RobotWalk : Agent
 
     void Update()
     {
-        if(Head.position.y > maxHeadHeight)
+        RaycastHit hit;
+        int groundLayerMask = 1 << LayerMask.NameToLayer("Devetik_Floor");  // Assurez-vous que ce layer est correctement configuré
+
+        // Envoyer un rayon depuis chaque pied vers le bas
+        if (Physics.Raycast(Head.position, Vector3.down, out hit, 6f, groundLayerMask))
         {
-            maxHeadHeight = Head.position.y;
-            textPlateforme.text = string.Format("{0:N2}", maxHeadHeight);  
+            currentProportionalHeadHeight = System.Math.Min((hit.distance-0.55f) / (normalHeadHeight-0.55f), 1);
+            currentHeadHeight = hit.distance;
         }
+        //currentProportionalHeadHeight = MeasureGroundDistance(Head, normalHeadHeight);
+        //currentProportionalHeadHeight = (Head.position.y-1.55f) / (normalHeadHeight-1.55f);
+        textPlateforme.text = string.Format("{0:N2}",currentProportionalHeadHeight);  
     }
 
     public float CenterOfGravityReward()
@@ -1247,8 +1259,8 @@ public class RobotWalk : Agent
             return;
 
             // Points en 2D pour le calcul
-            Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z);
-            Vector2 pointB = new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z);
+            Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z-0.06f);
+            Vector2 pointB = new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z-0.06f);
             Vector2 pointP = new Vector2(floorCoG.x, floorCoG.z);
 
             // Vecteur direction de la ligne
@@ -1308,7 +1320,7 @@ public class RobotWalk : Agent
         float angleWithVertical = Vector3.Angle(Torse.forward, Vector3.up);
 
         // Détermination si l'agent est couché ou debout
-        if (angleWithVertical > 80 && angleWithVertical < 140)
+        if ((angleWithVertical > 80 && angleWithVertical < 140) || currentProportionalHeadHeight > 0.8)
         {
             // L'agent est debout ou à l'envers
             faceOnTheFloor = 0;
@@ -1320,7 +1332,12 @@ public class RobotWalk : Agent
             //Debug.Log("L'agent est couché");
             // Utilisation du produit scalaire pour déterminer si sur le dos ou le ventre
             float dotProduct = Vector3.Dot(Torse.forward, Vector3.down);
-            if (dotProduct > 0) // Regarde vers le bas
+            Vector3 CentreDeGravité = CalculateCenterOfGravity();
+            //Vector3 piedsEnAvant = Bassin.InverseTransformPoint((Foot_LEFT.position + Foot_RIGHT.position)/2);
+            Vector3 piedsEnAvant = (Foot_LEFT.position + Foot_RIGHT.position)/2 - CentreDeGravité;
+            //Debug.Log(piedsEnAvant);
+
+            if (dotProduct > 0 && piedsEnAvant.z < 0) // Regarde vers le bas
             {
                 faceOnTheFloor = 1;
                 return 1;

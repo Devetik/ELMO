@@ -4,13 +4,13 @@ behaviors:
     hyperparameters:
       batch_size: 2048
       buffer_size: 20480
-      learning_rate: 0.0002
-      beta: 0.01
+      learning_rate: 0.001
+      beta: 0.5
       epsilon: 0.2
       lambd: 0.95
       num_epoch: 3
       learning_rate_schedule: constant
-      beta_schedule: constant
+      beta_schedule: linear
     network_settings:
       normalize: true
       hidden_units: 1024
@@ -22,7 +22,7 @@ behaviors:
         strength: 1.0
     keep_checkpoints: 500
     max_steps: 30000000
-    time_horizon: 1000
+    time_horizon: 500
     summary_freq: 50000
     checkpoint_interval: 250000
 

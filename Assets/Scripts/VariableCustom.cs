@@ -29,6 +29,8 @@ public class VariableCustom
         coucheFace,
         coucheDos,
         debout,
+        deboutRandom,
+        deboutDroit,
         random
     }
 
@@ -36,8 +38,26 @@ public class VariableCustom
     {
         if(positiontype == PositionType.random)
         {
-            Vector3 positionRandom = new Vector3(0,5,-40);
-            Quaternion rotationRandom = Quaternion.Euler(UnityEngine.Random.Range(-90,90), UnityEngine.Random.Range(-90,90), UnityEngine.Random.Range(-90,90));
+            Vector3 positionRandom = new Vector3(0,3,-40);
+            Quaternion rotationRandom = Quaternion.Euler(UnityEngine.Random.Range(-90,90), UnityEngine.Random.Range(-45,45), UnityEngine.Random.Range(-45,45));
+            return (positionRandom, rotationRandom);
+        }
+        if(positiontype == PositionType.debout)
+        {
+            Vector3 positionRandom = new Vector3(0,0.3f,5);
+            Quaternion rotationRandom = Quaternion.Euler(UnityEngine.Random.Range(-5,5), UnityEngine.Random.Range(0,0), UnityEngine.Random.Range(0,0));
+            return (positionRandom, rotationRandom);
+        }
+        if(positiontype == PositionType.deboutRandom)
+        {
+            Vector3 positionRandom = new Vector3(UnityEngine.Random.Range(-10,10),0.3f,UnityEngine.Random.Range(-25,-50));
+            Quaternion rotationRandom = Quaternion.Euler(UnityEngine.Random.Range(-5,5), UnityEngine.Random.Range(0,360), UnityEngine.Random.Range(-5,5));
+            return (positionRandom, rotationRandom);
+        }
+        if(positiontype == PositionType.deboutDroit)
+        {
+            Vector3 positionRandom = new Vector3(0,0.25f,5);
+            Quaternion rotationRandom = Quaternion.Euler(0, 0, 0);
             return (positionRandom, rotationRandom);
         }
         return (positionDebout,rotationDebout);
