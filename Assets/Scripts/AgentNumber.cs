@@ -12,7 +12,7 @@ public class AgentNumber : MonoBehaviour
     void Start()
     {
         int agentId = nextAgentId++;
-        dossardFront.text = agentId.ToString("D2");  // "D2" formate le numéro avec deux chiffres, par exemple "01", "02", etc.
+        dossardFront.text = "|| " + agentId.ToString("D2")+" ||";  // "D2" formate le numéro avec deux chiffres, par exemple "01", "02", etc.
         dossardBack.text = agentId.ToString("D2");
     }
 }

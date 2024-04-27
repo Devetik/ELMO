@@ -9,6 +9,9 @@ TagManager:
   - Floor
   - Target1
   - Plate
+  - Target2
+  - ground
+  - agent
   layers:
   - Default
   - TransparentFX

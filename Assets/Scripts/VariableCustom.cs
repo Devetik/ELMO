@@ -5,6 +5,21 @@ using UnityEngine;
 
 public class VariableCustom 
 {
+    public int shoulderL1;
+    public int shoulderR1;
+    public int shoulderL2;
+    public int shoulderR2;
+    public int shoulderL3;
+    public int shoulderR3;
+    public int coudeL;
+    public int coudeR;
+    public int cuisseL;
+    public int cuisseR;
+    public int tibiasL;
+    public int tibiasR;
+    public int footL;
+    public int footR;
+    
     private RobotWalk agent;
     private StepReward stepReward;
     public Vector3 positionCoucheFace = new Vector3(0,2.5f,-40);

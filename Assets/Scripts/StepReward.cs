@@ -86,7 +86,7 @@ public class StepReward
             // {
                 bonus += agent.simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
                 float headHeight = Mathf.Abs(agent.Head.position.y - ((agent.Foot_LEFT.position.y + agent.Foot_RIGHT.position.y)/2));
-                if(headHeight > 3.7f && (agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor))
+                if(headHeight > 3.7f)
                 {
                     Debug.Log("JACKPOT !!!");
                     agent.reward(500f);
@@ -127,7 +127,7 @@ public class StepReward
 
         float bonus = 0f;
         bonus += agent.simpleHeadOnTop(penality:0, baseValue:3, timeExpo:false);
-        bonus += CenterOfGravityRiseReward()/3;
+        //bonus += CenterOfGravityRiseReward()/3;
         agent.reward(bonus);
     }
 
@@ -139,18 +139,18 @@ public class StepReward
             Debug.Log("Step 3 Walk");
             stepQuatre = true;
         }
-        (agent.startPosition, agent.startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.debout);
+        //(agent.startPosition, agent.startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.debout);
         
         //bonus += agent.isWalkingForward();
-        agent.reward(agent.DistanceToTarget(), "Distance to Target");
-        agent.reward((agent.currentProportionalHeadHeight-0.5f)*2, "Head Height");
+        //agent.reward(agent.DistanceToTarget(), "Distance to Target");
+        agent.reward(agent.currentProportionalHeadHeight, "Head Height", Unity.MLAgents.StatAggregationMethod.Average);
         //agent.reward(CenterOfGravityWalkReward(), "Center of Gravity");
         //agent.reward(agent.ApplyStepReward(), "Step Reward");
         //agent.reward(agent.isWalkingForward(), "Is Walking Forward");
-        if(agent.currentProportionalHeadHeight < 0.1)
+        if(agent.currentProportionalHeadHeight < 0.8)
         {
-            agent.reward(-1f);
-            //agent.EndEpisode();
+            // agent.reward(-5f);
+            // agent.EndEpisode();
         }
     }
 
@@ -171,13 +171,13 @@ public class StepReward
             //agent.EndEpisode();
         }
 
-        if(agent.currentHeadHeight > 0.9 && (agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor))
+        if(agent.currentHeadHeight > 0.9)
         {
             agent.reward(1000f);
             agent.EndEpisode();
         }
         //bonus+= agent.DistanceToTarget();
-        bonus+= CenterOfGravityRiseReward();
+        //bonus+= CenterOfGravityRiseReward();
         //bonus += agent.currentProportionalHeadHeight;
         agent.reward(bonus);
     }
@@ -235,93 +235,93 @@ public class StepReward
         return Math.Min(handHeadDistance / distanceHandHeadMax, 1f);
     }
 
-    public float CenterOfGravityRiseReward()
-    {
-        float reward = 0f;
-        float tol = agent.PerpendicularDistanceFromGoC;
+    // public float CenterOfGravityRiseReward()
+    // {
+    //     float reward = 0f;
+    //     float tol = agent.PerpendicularDistanceFromGoC;
 
-        if (agent.leftFootContact.LeftFootOnFloor && agent.rightFootContact.RightFootOnFloor)
-        {
-            if(agent.PerpendicularDistanceFromGoC >= 0)
-            {
-                //Debug.Log(2 -PerpendicularDistanceFromGoC);
-                reward += 1f -agent.PerpendicularDistanceFromGoC;
-            }
-            else
-            {
-                //Debug.Log(PerpendicularDistanceFromGoC+2);
-                reward += agent.PerpendicularDistanceFromGoC+1;
-            }
-            if(reward > 0.9f)
-            {
-                reward += 2f;
-            }
+    //     if (agent.leftFootContact.LeftFootOnFloor && agent.rightFootContact.RightFootOnFloor)
+    //     {
+    //         if(agent.PerpendicularDistanceFromGoC >= 0)
+    //         {
+    //             //Debug.Log(2 -PerpendicularDistanceFromGoC);
+    //             reward += 1f -agent.PerpendicularDistanceFromGoC;
+    //         }
+    //         else
+    //         {
+    //             //Debug.Log(PerpendicularDistanceFromGoC+2);
+    //             reward += agent.PerpendicularDistanceFromGoC+1;
+    //         }
+    //         if(reward > 0.9f)
+    //         {
+    //             reward += 2f;
+    //         }
 
-            if(agent.leftFootParallel && agent.rightFootParallel)
-            {
-                reward += 1f;
-            }
-            else
-            {
-                reward -= 1f;
-            }
-        }
-        else
-        {
-            reward-= 0.1f;
-        }
-        return reward;
-    }
+    //         if(agent.leftFootParallel && agent.rightFootParallel)
+    //         {
+    //             reward += 1f;
+    //         }
+    //         else
+    //         {
+    //             reward -= 1f;
+    //         }
+    //     }
+    //     else
+    //     {
+    //         reward-= 0.1f;
+    //     }
+    //     return reward;
+    // }
 
-    public float CenterOfGravityWalkReward()
-    {
-        float reward = 0f;
+    // public float CenterOfGravityWalkReward()
+    // {
+    //     float reward = 0f;
 
-        if (agent.leftFootContact.LeftFootOnFloor && agent.rightFootContact.RightFootOnFloor)
-        {
-            if(agent.PerpendicularDistanceFromGoC >= 0)
-            {
-                //Debug.Log(2 -PerpendicularDistanceFromGoC);
-                reward += 1f -agent.PerpendicularDistanceFromGoC;
-            }
-            else
-            {
-                //Debug.Log(PerpendicularDistanceFromGoC+2);
-                reward += agent.PerpendicularDistanceFromGoC+1;
-            }
-        }
-        else if ( agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor)
-        {
-            // Un pied est levé
-            Vector3 currentCoG = agent.CalculateCenterOfGravity();
-            Transform supportingFoot = agent.leftFootContact.LeftFootOnFloor ? agent.Foot_LEFT : agent.Foot_RIGHT;
-            Vector3 supportingFootZero = new Vector3(supportingFoot.position.x, 0f, supportingFoot.position.z+0.2f);
-            float distanceToSupportingFoot = agent.leftFootContact.LeftFootOnFloor ? agent.distanceToCoGFromLeftFoot : agent.distanceToCoGFromRightFoot;
-            float distanceZ = Math.Abs(currentCoG.z - supportingFootZero.z);
-            float distanceX = Math.Abs(currentCoG.x - supportingFootZero.x);
-            float supportingFootAngle = agent.leftFootContact.LeftFootOnFloor ? agent.leftFootAngle : agent.rightFootAngle;
-            if(supportingFootAngle < 45)
-            {
-                float CustomPerpendicularDistanceFromGoC = agent.PerpendicularDistanceFromGoC - 0.2f;
-                if(CustomPerpendicularDistanceFromGoC >= 0)
-                {
-                    //Debug.Log(2 -CustomPerpendicularDistanceFromGoC + " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
-                    reward += 2 -CustomPerpendicularDistanceFromGoC;
-                }
-                else
-                {
-                    //Debug.Log(CustomPerpendicularDistanceFromGoC+2+ " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
-                    reward += CustomPerpendicularDistanceFromGoC+2;
-                }
-            }
-            else
-            {
-                reward -= 0.1f;
-            }
-            return reward;
-        }
-        return reward;
-    }
+    //     if (agent.leftFootContact.LeftFootOnFloor && agent.rightFootContact.RightFootOnFloor)
+    //     {
+    //         if(agent.PerpendicularDistanceFromGoC >= 0)
+    //         {
+    //             //Debug.Log(2 -PerpendicularDistanceFromGoC);
+    //             reward += 1f -agent.PerpendicularDistanceFromGoC;
+    //         }
+    //         else
+    //         {
+    //             //Debug.Log(PerpendicularDistanceFromGoC+2);
+    //             reward += agent.PerpendicularDistanceFromGoC+1;
+    //         }
+    //     }
+    //     else if ( agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor)
+    //     {
+    //         // Un pied est levé
+    //         Vector3 currentCoG = agent.CalculateCenterOfGravity();
+    //         Transform supportingFoot = agent.leftFootContact.LeftFootOnFloor ? agent.Foot_LEFT : agent.Foot_RIGHT;
+    //         Vector3 supportingFootZero = new Vector3(supportingFoot.position.x, 0f, supportingFoot.position.z+0.2f);
+    //         float distanceToSupportingFoot = agent.leftFootContact.LeftFootOnFloor ? agent.distanceToCoGFromLeftFoot : agent.distanceToCoGFromRightFoot;
+    //         float distanceZ = Math.Abs(currentCoG.z - supportingFootZero.z);
+    //         float distanceX = Math.Abs(currentCoG.x - supportingFootZero.x);
+    //         float supportingFootAngle = agent.leftFootContact.LeftFootOnFloor ? agent.leftFootAngle : agent.rightFootAngle;
+    //         if(supportingFootAngle < 45)
+    //         {
+    //             float CustomPerpendicularDistanceFromGoC = agent.PerpendicularDistanceFromGoC - 0.2f;
+    //             if(CustomPerpendicularDistanceFromGoC >= 0)
+    //             {
+    //                 //Debug.Log(2 -CustomPerpendicularDistanceFromGoC + " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+    //                 reward += 2 -CustomPerpendicularDistanceFromGoC;
+    //             }
+    //             else
+    //             {
+    //                 //Debug.Log(CustomPerpendicularDistanceFromGoC+2+ " distanceToCoGFromLeftFoot:" + (1-distanceToSupportingFoot) + " Angle:" + supportingFootAngle);
+    //                 reward += CustomPerpendicularDistanceFromGoC+2;
+    //             }
+    //         }
+    //         else
+    //         {
+    //             reward -= 0.1f;
+    //         }
+    //         return reward;
+    //     }
+    //     return reward;
+    // }
 
 
     public void Custom()
@@ -386,7 +386,7 @@ public class StepReward
             bonus += agent.CenterOfGravityReward()* agent.decayRate;
             //Debug.Log("debout");
         }
-        if(agent.TempsSession > 2f && agent.currentProportionalHeadHeight > 0.8f && (agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor))
+        if(agent.TempsSession > 2f && agent.currentProportionalHeadHeight > 0.8f )
         {
             //agent.reward(1000f * agent.decayRate);
             
