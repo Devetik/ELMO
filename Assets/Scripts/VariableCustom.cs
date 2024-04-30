@@ -13,13 +13,26 @@ public class VariableCustom
     public int shoulderR3;
     public int coudeL;
     public int coudeR;
-    public int cuisseL;
-    public int cuisseR;
+    public int cuisseL1;
+    public int cuisseR1;
+    public int cuisseL2;
+    public int cuisseR2;
+    public int cuisseL3;
+    public int cuisseR3;
     public int tibiasL;
     public int tibiasR;
     public int footL;
     public int footR;
-    
+    public int torse1;
+    public int torse2;
+    public int torse3;
+    public int abdo1;
+    public int abdo2;
+    public int abdo3;
+    public int head1;
+    public int head2;
+    public int head3;
+
     private RobotWalk agent;
     private StepReward stepReward;
     public Vector3 positionCoucheFace = new Vector3(0,2.5f,-40);

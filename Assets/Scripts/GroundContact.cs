@@ -11,7 +11,7 @@ namespace Unity.MLAgentsExamples
     [DisallowMultipleComponent]
     public class GroundContact : MonoBehaviour
     {
-        [HideInInspector] public Agent agent;
+        [HideInInspector] public RobotWalk agent;
         public RobotWalk centralController;
 
         [Header("Ground Check")] public bool agentDoneOnGroundContact; // Whether to reset agent on ground contact.
@@ -30,7 +30,7 @@ namespace Unity.MLAgentsExamples
                 touchingGround = true;
                 if (penalizeGroundContact)
                 {
-                    agent.SetReward(groundContactPenalty);
+                    agent.reward(groundContactPenalty);
                 }
 
                 if (agentDoneOnGroundContact)

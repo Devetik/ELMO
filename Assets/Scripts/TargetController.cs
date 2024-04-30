@@ -78,39 +78,8 @@ namespace Unity.MLAgentsExamples
         /// </summary>
         public void MoveTargetToRandomPosition()
         {
-            int orientation = Random.Range(1,4);
-            Vector3 newTargetPos = m_startingPos;
-            //Vector3 newTargetPos = agentPosition.position;
-            
+            var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
             newTargetPos.y = m_startingPos.y;
-            if(orientation <=2)//spwan en bas
-            {
-                newTargetPos.z +=  Random.Range(minSpawnRadius, maxSpawnRadius);
-                if(orientation == 1)//spawn à gauche
-                {
-                    newTargetPos.x -= Random.Range(minSpawnRadius, maxSpawnRadius);
-                }
-                else//spwn à droite
-                {
-                    newTargetPos.x += Random.Range(minSpawnRadius, maxSpawnRadius);
-                }
-            }
-            else//spawn en haut
-            {
-                newTargetPos.z -=  Random.Range(minSpawnRadius, maxSpawnRadius);
-                if(orientation == 3)//spawn à gauche
-                {
-                    newTargetPos.x -= Random.Range(minSpawnRadius, maxSpawnRadius);
-                }
-                else//spwn à droite
-                {
-                    newTargetPos.x += Random.Range(minSpawnRadius, maxSpawnRadius);
-                }
-            }
-
-            // var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
-            // newTargetPos.y = m_startingPos.y;
-            // Debug.Log(m_startingPos + " / "+ newTargetPos);
             transform.position = newTargetPos;
         }
 

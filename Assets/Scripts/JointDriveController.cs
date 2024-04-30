@@ -47,15 +47,17 @@ namespace Unity.MLAgentsExamples
         /// <summary>
         /// Reset body part to initial configuration.
         /// </summary>
-        public void Reset(BodyPart bp)
+        public void Reset(BodyPart bp, Vector3 modification)
         {
             if (bp.rb != null && bp.rb.isKinematic == false)
             {
-                bp.rb.transform.position = bp.startingPos;
-                bp.rb.transform.rotation = bp.startingRot;
+            }
                 bp.rb.velocity = Vector3.zero;
                 bp.rb.angularVelocity = Vector3.zero;
-            }
+                bp.rb.isKinematic = true;
+                bp.rb.transform.position = bp.startingPos + modification;
+                bp.rb.transform.rotation = bp.startingRot;
+                bp.rb.isKinematic = false;
             if (bp.groundContact)
             {
                 bp.groundContact.touchingGround = false;
@@ -149,11 +151,11 @@ namespace Unity.MLAgentsExamples
             if (!bp.groundContact)
             {
                 bp.groundContact = t.gameObject.AddComponent<GroundContact>();
-                bp.groundContact.agent = gameObject.GetComponent<Agent>();
+                bp.groundContact.agent = gameObject.GetComponent<RobotWalk>();
             }
             else
             {
-                bp.groundContact.agent = gameObject.GetComponent<Agent>();
+                bp.groundContact.agent = gameObject.GetComponent<RobotWalk>();
             }
 
             if (bp.joint)
