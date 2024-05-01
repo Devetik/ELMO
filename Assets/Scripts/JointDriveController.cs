@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 using Unity.MLAgents;
+using Unity.VisualScripting;
+using System;
+using System.Linq;
 
 namespace Unity.MLAgentsExamples
 {
@@ -33,6 +36,8 @@ namespace Unity.MLAgentsExamples
         public float currentXNormalizedRot;
         public float currentYNormalizedRot;
         public float currentZNormalizedRot;
+        public float muscleFatigue;
+        public string Name;
 
         [Header("Other Debug Info")]
         [Space(10)]
@@ -43,6 +48,9 @@ namespace Unity.MLAgentsExamples
         public float currentJointTorqueSqrMag;
         public AnimationCurve jointForceCurve = new AnimationCurve();
         public AnimationCurve jointTorqueCurve = new AnimationCurve();
+        private float MinFatigue = -100f;
+        private float MaxFatigue = 100f;
+        private const float RecoveryRate = 1f;
 
         /// <summary>
         /// Reset body part to initial configuration.
@@ -51,13 +59,13 @@ namespace Unity.MLAgentsExamples
         {
             if (bp.rb != null && bp.rb.isKinematic == false)
             {
-            }
                 bp.rb.velocity = Vector3.zero;
                 bp.rb.angularVelocity = Vector3.zero;
                 bp.rb.isKinematic = true;
                 bp.rb.transform.position = bp.startingPos + modification;
                 bp.rb.transform.rotation = bp.startingRot;
                 bp.rb.isKinematic = false;
+            }
             if (bp.groundContact)
             {
                 bp.groundContact.touchingGround = false;
@@ -67,13 +75,22 @@ namespace Unity.MLAgentsExamples
             {
                 bp.targetContact.touchingTarget = false;
             }
+            bp.muscleFatigue = 0f;
+        }
+        private float CalculeFatigue(float x = 0, float y = 0, float z= 0)
+        {
+            float[] numbers = { Math.Abs(x), Math.Abs(y), Math.Abs(z) };
+            float total = numbers.Sum();
+            return total;
         }
 
         /// <summary>
         /// Apply torque according to defined goal `x, y, z` angle and force `strength`.
         /// </summary>
-        public void SetJointTargetRotation(float x, float y, float z, bool constrain=true)
+        public void SetJointTargetRotation(BodyPart bp, float x, float y, float z, bool constrain=true)
         {
+            bp.muscleFatigue -= CalculeFatigue(x,y,z)*1.5f;
+            bp.muscleFatigue = Mathf.Min(Math.Max(bp.muscleFatigue, MinFatigue), MaxFatigue);
             float xRot;
             float yRot;
             float zRot;
@@ -102,6 +119,9 @@ namespace Unity.MLAgentsExamples
 
             joint.targetRotation = Quaternion.Euler(xRot, yRot, zRot);
             currentEularJointRotation = new Vector3(xRot, yRot, zRot);
+
+            bp.muscleFatigue += bp.muscleFatigue >= 0 ? RecoveryRate*0.01f : RecoveryRate*0.5f;
+            bp.muscleFatigue = Mathf.Min(bp.muscleFatigue, MaxFatigue);
         }
 
         public void SetJointStrength(float strength)
@@ -135,7 +155,7 @@ namespace Unity.MLAgentsExamples
         /// <summary>
         /// Create BodyPart object and add it to dictionary.
         /// </summary>
-        public void SetupBodyPart(Transform t)
+        public void SetupBodyPart(Transform t, string name)
         {
             var bp = new BodyPart
             {
@@ -144,19 +164,16 @@ namespace Unity.MLAgentsExamples
                 startingPos = t.position,
                 startingRot = t.rotation
             };
+            bp.Name = name;
             bp.rb.maxAngularVelocity = k_MaxAngularVelocity;
 
-            // Add & setup the ground contact script
+            // Ajouter ou mettre à jour le script GroundContact
             bp.groundContact = t.GetComponent<GroundContact>();
             if (!bp.groundContact)
             {
                 bp.groundContact = t.gameObject.AddComponent<GroundContact>();
-                bp.groundContact.agent = gameObject.GetComponent<RobotWalk>();
             }
-            else
-            {
-                bp.groundContact.agent = gameObject.GetComponent<RobotWalk>();
-            }
+            bp.groundContact.agent = gameObject.GetComponent<RobotWalk>();
 
             if (bp.joint)
             {
@@ -167,10 +184,12 @@ namespace Unity.MLAgentsExamples
                     maximumForce = maxJointForceLimit
                 };
                 bp.joint.slerpDrive = jd;
+                bp.muscleFatigue = 0f;
             }
-
             bp.thisJdController = this;
-            bodyPartsDict.Add(t, bp);
+
+            // Ajouter le BodyPart au dictionnaire avec Transform comme clé
+            bodyPartsDict[t] = bp;
             bodyPartsList.Add(bp);
         }
 

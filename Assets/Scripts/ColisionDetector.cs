@@ -8,13 +8,13 @@ public class ColisionDetector : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         // Utilisez la référence centralController pour appeler la méthode HandleCollision
-        if (centralController != null) // Assurez-vous que centralController n'est pas null
-        {
-            centralController.HandleCollision(gameObject.name, other);
-        }
-        else
-        {
-            Debug.LogWarning("centralController n'est pas défini sur " + gameObject.name);
-        }
+        // if (centralController != null) // Assurez-vous que centralController n'est pas null
+        // {
+        //     centralController.HandleCollision(gameObject.name, other);
+        // }
+        // else
+        // {
+        //     Debug.LogWarning("centralController n'est pas défini sur " + gameObject.name);
+        // }
     }
 }

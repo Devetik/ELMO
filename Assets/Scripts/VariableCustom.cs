@@ -21,8 +21,6 @@ public class VariableCustom
     public int cuisseR3;
     public int tibiasL;
     public int tibiasR;
-    public int footL;
-    public int footR;
     public int torse1;
     public int torse2;
     public int torse3;
@@ -32,6 +30,12 @@ public class VariableCustom
     public int head1;
     public int head2;
     public int head3;
+    public int footL1;
+    public int footL2;
+    public int footL3;
+    public int footR1;
+    public int footR2;
+    public int footR3;
 
     private RobotWalk agent;
     private StepReward stepReward;

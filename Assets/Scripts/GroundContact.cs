@@ -30,27 +30,16 @@ namespace Unity.MLAgentsExamples
                 touchingGround = true;
                 if (penalizeGroundContact)
                 {
-                    agent.reward(groundContactPenalty);
+                    //agent.reward(groundContactPenalty);
                 }
 
                 if (agentDoneOnGroundContact)
                 {
-                    agent.EndEpisode();
+                    //agent.EndEpisode();
                 }
             }
         }
-        private void OnTriggerEnter(Collider other)
-        {
-            // Utilisez la référence centralController pour appeler la méthode HandleCollision
-            if (centralController != null) // Assurez-vous que centralController n'est pas null
-            {
-                centralController.HandleCollision(gameObject.name, other);
-            }
-            else
-            {
-                Debug.LogWarning("centralController n'est pas défini sur " + gameObject.name);
-            }
-        }
+
 
         /// <summary>
         /// Check for end of ground collision and reset flag appropriately.

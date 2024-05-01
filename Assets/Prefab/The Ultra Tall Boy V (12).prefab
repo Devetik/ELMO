@@ -5478,7 +5478,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &6025626964622657773
 Transform:
   m_ObjectHideFlags: 0
@@ -6542,10 +6542,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 369
+    VectorObservationSize: 332
     NumStackedVectorObservations: 1
     m_ActionSpec:
-      m_NumContinuousActions: 43
+      m_NumContinuousActions: 44
       BranchSizes: 01000000
     VectorActionSize: 
     VectorActionDescriptions: []
@@ -6574,10 +6574,10 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 5000
+  MaxStep: 100000
   target: {fileID: 6025626964622657773}
-  m_TargetWalkingSpeed: 2
-  randomizeWalkSpeedEachEpisode: 1
+  m_TargetWalkingSpeed: 3
+  randomizeWalkSpeedEachEpisode: 0
   Agent: {fileID: 8495637027644995506}
   EnvToReset: {fileID: 0}
   Target: {fileID: 7571130102623840287}
