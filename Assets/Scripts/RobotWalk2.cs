@@ -18,6 +18,10 @@ using Unity.MLAgentsExamples;
 
 public class RobotWalk : Agent
 {
+    private bool enTest = true;
+    private bool enTestUnit = false;
+    private Vector3[] corners;
+    private bool isCoGInside = false;
     [Header("Target To Walk Towards")] public Transform target; //Target the agent will walk towards during training.
     [Header("Walk Speed")]
     [Range(0.1f, 5)]
@@ -30,7 +34,7 @@ public class RobotWalk : Agent
         get { return m_TargetWalkingSpeed; }
         set { m_TargetWalkingSpeed = Mathf.Clamp(value, .1f, m_maxWalkingSpeed); }
     }
-    const float m_maxWalkingSpeed = 10; //The max walking speed
+    const float m_maxWalkingSpeed = 6; //The max walking speed
     //Should the agent sample a new goal velocity each episode?
     //If true, walkSpeed will be randomly set between zero and m_maxWalkingSpeed in OnEpisodeBegin()
     //If false, the goal velocity will be walkingSpeed
@@ -46,15 +50,15 @@ public class RobotWalk : Agent
     public Transform Target;
     public Transform Pressure_Plate;
     public ColorChanger colorChanger;
-    [Header("Body Parts")] public Transform Bassin;
+    [Header("Body Parts")] 
     public Transform Head;
+    public Transform Bassin;
     public Transform Foot_LEFT;
     public Transform Foot_RIGHT;
     public Transform Tibias_LEFT;
     public Transform Tibias_RIGHT;
     public Transform Cuisse_LEFT;
     public Transform Cuisse_RIGHT;
-    //public Transform Bassin;
     public Transform Abdos;
     public Transform Torse;
     public Transform Arm_LEFT;
@@ -67,6 +71,8 @@ public class RobotWalk : Agent
     public Transform Shoulder_RIGHT;
     public Transform Forearm_LEFT;
     public Transform Forearm_RIGHT;
+    public ConfigurableJoint jointLeft;
+    public ConfigurableJoint jointRight;
 
 
     public float TempsSession = 0f;
@@ -75,6 +81,7 @@ public class RobotWalk : Agent
     private Vector3 lastPosition;
     private float distanceToTargetAtStart;
     public float normalHeadHeight = 4.13f;
+    public float normalBassinHeight = 1.80f;
     public float normalTorseHeight = 3.25f;
     private int runNumber = 0;
     public float forwardReward = 1f;
@@ -108,9 +115,10 @@ public class RobotWalk : Agent
     public float distanceToCoGFromLeftFoot  = 0f;
     public float distanceToCoGFromRightFoot = 0f;
     public TextMeshPro textPlateforme;
-    private float maxHeadHeight = 2f;
     public float currentProportionalHeadHeight = 0f;
+    public float currentProportionalBassinHeight = 0f;
     public float currentHeadHeight = 0f;
+    public float currentBassinHeight = 0f;
     public int faceOnTheFloor;
     private int curriculumStep;
     public Vector3 startPosition;
@@ -126,6 +134,8 @@ public class RobotWalk : Agent
     private bool footRightOnGround;
     private int lastFootInProgress = 0; //1 = left -1 = right
     private float totalFatigue;
+    private int startPositionNumber;
+    Vector2 positionTorse;
     
 
     //This will be used as a stabilized model space reference point for observations
@@ -137,6 +147,7 @@ public class RobotWalk : Agent
 
     public override void Initialize()
     {
+        enTestUnit = GameObject.Find("Test").activeSelf;
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
         m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
 
@@ -183,26 +194,41 @@ public class RobotWalk : Agent
     }
     public override void OnEpisodeBegin()
     {
-        Vector3 modification = new Vector3(UnityEngine.Random.Range(0, 0),0,UnityEngine.Random.Range(0, 0));
+        startPositionNumber = UnityEngine.Random.Range(enTest?2:0, 10);
+        if(startPositionNumber >= 2)//debout
+        {
+            Agent.localPosition = new Vector3(0,0.0f,0);
+            Agent.localRotation = Quaternion.Euler(UnityEngine.Random.Range(0, 0), UnityEngine.Random.Range(0f, enTestUnit?0f:360f), 0);
+        }else if(startPositionNumber == 0)//Face en avant
+        {
+            Agent.localPosition = new Vector3(0,1.5f,0);
+            Agent.localRotation = Quaternion.Euler(UnityEngine.Random.Range(-90, -90), UnityEngine.Random.Range(0f, 360f), 0);
+        }else if(startPositionNumber == 1)//sur le dos
+        {
+            Agent.localPosition = new Vector3(0,1.5f,0);
+            Agent.localRotation = Quaternion.Euler(UnityEngine.Random.Range(90, 90), UnityEngine.Random.Range(0f, 360f), 0);
+        }
+        
         foreach (var bodyPart in m_JdController.bodyPartsDict.Values)
         {
-            bodyPart.Reset(bodyPart, modification);
+            bodyPart.Reset(bodyPart);
         }
         //Random start rotation to help generalize
-        Bassin.rotation = Quaternion.Euler(0, UnityEngine.Random.Range(0f, 0f), 0);
+        //Bassin.rotation = Quaternion.Euler(0, UnityEngine.Random.Range(0f, 0f), 0);
         UpdateOrientationObjects();
 
         //Set our goal walking speed
         MTargetWalkingSpeed =
-            randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(0.1f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
+            randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(2f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
         if(randomizeWalkSpeedEachEpisode || speedBeforeOrientate == 0f)
         {
-            speedBeforeOrientate = randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(0.1f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
+            speedBeforeOrientate = randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(2f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
         }
 
         targetConsecutive = 0;
         enchainementStep = 1;
         totalFatigue = 0f;
+        positionTorse = new Vector2(Torse.position.x, Torse.position.z);
         /*
         runNumber++;
         TempsSession = 0f;
@@ -306,7 +332,9 @@ public class RobotWalk : Agent
 
     void FixedUpdate()
     {
+        GetStability();
         totalFatigue = 0f;
+        var bpDict = m_JdController.bodyPartsDict;
         int count = 0;
         foreach (var bodyPart in m_JdController.bodyPartsDict.Values)
         {
@@ -365,23 +393,42 @@ public class RobotWalk : Agent
         }
 
 
-        //AddReward(matchSpeedReward * lookAtTargetReward);
+        //reward(matchSpeedReward * lookAtTargetReward);
         //Debug.Log("lookAtTargetReward:"+lookAtTargetReward+"  /  matchSpeedReward:"+ (String.Format("{0:F6}", matchSpeedReward)) );
-        //reward(matchSpeedReward * lookAtTargetReward, "Look at Target", StatAggregationMethod.Average);
-
+        reward(matchSpeedReward * lookAtTargetReward, "Look at Target", StatAggregationMethod.Average);
         //reward(lookAtTargetReward * matchSpeedReward , "Look at Target/Matche Speed", StatAggregationMethod.Average);
         canGoForward = lookAtTargetReward > 0.9;
         //reward(CalculateCoGReward()*currentProportionalHeadHeight, "Centre de gravité / Head Height", StatAggregationMethod.Average);
-        //reward(totalFatigue/1000);
+        reward(totalFatigue/1000);
 
-        //reward(CalculateCoGReward()*matchSpeedReward);
-        reward(currentProportionalHeadHeight);
-
+        // //reward(CalculateCoGReward()*matchSpeedReward);
         UpdateFootPosition();
-        //reward(ApplyStepReward()*lookAtTargetReward, "Foot steps",StatAggregationMethod.Sum);
-        //reward(matchSpeedReward, "Matche Speed", StatAggregationMethod.Average);
+        reward(lookAtTargetReward*0.1f);
+        reward(isCoGInside ? 10f:-10f);
+        // //reward(ApplyStepReward()*lookAtTargetReward, "Foot steps",StatAggregationMethod.Sum);
+        // //reward(matchSpeedReward, "Matche Speed", StatAggregationMethod.Average);
+
+        // //Debug.Log(Math.Max(0f,Math.Min(CalculateCoGReward(),1f)));
+        // Vector2 currentTorsePosition = new Vector2(Torse.position.x, Torse.position.z);
+        // reward(-Vector2.Distance(currentTorsePosition, positionTorse)/10f);
+        // if(currentProportionalHeadHeight > 0.9f && (bpDict[Foot_LEFT].groundContact.touchingGround || bpDict[Foot_RIGHT].groundContact.touchingGround))
+        // {
+        //     reward(1f);
+        // }
+        //reward(Math.Max(0f,Math.Min(CalculateCoGReward(),1f)));
+        // reward(currentProportionalHeadHeight);
+        // reward(currentProportionalBassinHeight);
+        // reward((100-Vector3.Angle(Foot_LEFT.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Foot_RIGHT.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Tibias_LEFT.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Tibias_RIGHT.up, Vector3.up))/1000);
+        // // reward((100-Vector3.Angle(Cuisse_LEFT.up, Vector3.up))/1000);
+        // // reward((100-Vector3.Angle(Cuisse_RIGHT.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Torse.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Abdos.up, Vector3.up))/1000);
+        // reward((100-Vector3.Angle(Bassin.up, Vector3.up))/1000);
     }
-    float CalculateCoGReward() 
+    float CalculateCoGReward(bool staticPosition = false) 
     {
         // Vector3 midpoint = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
         // midpoint.y = 0f;
@@ -432,13 +479,37 @@ public class RobotWalk : Agent
         Vector2 centreDroite = new Vector2(Foot_LEFT.position.x-0.3f, Foot_LEFT.position.z);
         distanceToCoGFromLeftFoot = Vector2.Distance(centreGauche, closestPoint);
         distanceToCoGFromRightFoot = Vector2.Distance(centreDroite, closestPoint);
-        if(PerpendicularDistanceFromGoC <0)
+
+        Vector2 gaucheZ = pointA;
+        Vector2 droiteZ = pointB;
+        gaucheZ.x = 0;
+        droiteZ.x = 0;
+        float distancePieds = Vector2.Distance(gaucheZ, droiteZ);//Distance max de 2.8f
+
+        if(staticPosition)
         {
-            return 1+PerpendicularDistanceFromGoC;
-        }else
-        {
-            return 1-PerpendicularDistanceFromGoC;
+            if(distancePieds < 0.5f)
+            {
+                if(PerpendicularDistanceFromGoC <0)
+                {
+                    return 1+PerpendicularDistanceFromGoC;
+                }else
+                {
+                    return 1-PerpendicularDistanceFromGoC;
+                }
+            }
         }
+        else
+        {
+            if(PerpendicularDistanceFromGoC <0)
+            {
+                return 1+PerpendicularDistanceFromGoC;
+            }else
+            {
+                return 1-PerpendicularDistanceFromGoC;
+            }
+        }
+        return 0f;
         
     }
 
@@ -574,23 +645,12 @@ public class RobotWalk : Agent
 
         if (Input.GetKey(KeyCode.C))
         {
-            // continuousActionsOut[vc.coudeL] = 1.0f;
-            // continuousActionsOut[vc.coudeR] = 1.0f;
-            
-            // continuousActionsOut[vc.torse3] = 1.0f;
-            // continuousActionsOut[vc.abdo3] = 1.0f;
-            // continuousActionsOut[vc.head3] = 1.0f;
-            continuousActionsOut[vc.cuisseL3] = 1.0f;
-            continuousActionsOut[vc.cuisseR3] = 1.0f;
+            continuousActionsOut[vc.cuisseL1] = 1.0f;
+            continuousActionsOut[vc.cuisseR1] = -1.0f;
+            continuousActionsOut[vc.tibiasL] = -1.0f;
         }
         else if (Input.GetKey(KeyCode.V))
         {
-            // continuousActionsOut[vc.coudeL] = -1.0f;
-            // continuousActionsOut[vc.coudeR] = -1.0f;
-            // continuousActionsOut[vc.torse3] = -1.0f;
-            // continuousActionsOut[vc.abdo3] = -1.0f;
-            // continuousActionsOut[vc.head3] = -1.0f;
-            
             continuousActionsOut[vc.cuisseL3] = -1.0f;
             continuousActionsOut[vc.cuisseR3] = -1.0f;
         }
@@ -649,11 +709,12 @@ public class RobotWalk : Agent
         sensor.AddObservation(m_OrientationCube.transform.InverseTransformPoint(target.transform.position));
         sensor.AddObservation(Vector3.Distance(velGoal, avgVel));
 
-        sensor.AddObservation(MeasureGroundDistance(transform, 4f));
-        sensor.AddObservation(MeasureGroundDistance(Torse, normalTorseHeight));
+        sensor.AddObservation(currentHeadHeight);
+        sensor.AddObservation(currentBassinHeight);
         sensor.AddObservation(MeasureGroundDistance(Foot_LEFT, 2f));
         sensor.AddObservation(MeasureGroundDistance(Foot_RIGHT, 2f));
         sensor.AddObservation(currentProportionalHeadHeight);
+        sensor.AddObservation(currentProportionalBassinHeight);
 
         // sensor.AddObservation(CalculateCenterOfGravity());
         sensor.AddObservation(CalculateCoGReward() );
@@ -701,20 +762,6 @@ public class RobotWalk : Agent
         {
             EndEpisode();
         }
-    }
-    private void OnTriggerEnter(Collider other)
-    {
-        if(other.gameObject.tag == "Walls")
-        {
-            //Debug.Log("Wall");
-            reward(-1000f);
-            EndEpisode();
-        }
-        // if(other.gameObject.tag == "Target")
-        // {
-        //     Debug.Log("Cube Touché");
-        //     reward(1f, "Cube touched",StatAggregationMethod.Sum);
-        // }
     }
 
     public float isWalkingForward()
@@ -1092,52 +1139,7 @@ public class RobotWalk : Agent
         return Vector3.Distance(midpoint, centerOfGravityHorizontal);
     }
 
-    void Update()
-    {
-        RaycastHit hit;
-        int groundLayerMask = 1 << LayerMask.NameToLayer("Devetik_Floor");  // Assurez-vous que ce layer est correctement configuré
 
-        // Envoyer un rayon depuis chaque pied vers le bas
-        if (Physics.Raycast(Head.position, Vector3.down, out hit, 6f, groundLayerMask))
-        {
-            currentProportionalHeadHeight = System.Math.Min((hit.distance-0.55f) / (normalHeadHeight-0.55f), 1);
-            //Debug.Log(currentProportionalHeadHeight);
-            currentHeadHeight = hit.distance;
-            //Debug.DrawRay(Head.position, Vector3.down , Color.red, 2f);
-        }
-
-
-        // Vector3 min = Vector3.Min(Foot_LEFT.position, Foot_RIGHT.position);
-        // Vector3 max = Vector3.Max(Foot_LEFT.position, Foot_RIGHT.position);
-
-        // // Créer le rectangle en utilisant les min et max
-        // Rect footRect = new Rect(min.x, min.z, max.x - min.x, max.z - min.z);
-
-        // // Vérifier si le centre de gravité est dans le rectangle
-        // if (footRect.Contains(new Vector2(CoG.x, CoG.z))) {
-        //     Debug.Log("Le centre de gravité est à l'intérieur du rectangle");
-        // } else {
-        //     Debug.Log("Le centre de gravité est à l'extérieur du rectangle");
-        // }
-
-
-        // Vector3 min = Vector3.Min(Foot_LEFT.position, Foot_RIGHT.position);
-        // Vector3 max = Vector3.Max(Foot_LEFT.position, Foot_RIGHT.position);
-        // Vector3 center = (min + max) / 2;
-        // float width = Mathf.Abs(max.x - min.x);
-        // float length = Mathf.Abs(max.z - min.z);
-
-        // // Définir la couleur du Gizmo en fonction de la position du centre de gravité
-        // Rect footRect = new Rect(min.x, min.z, width, length);
-        // if (footRect.Contains(new Vector2(CoG.x, CoG.z))) {
-        //     Gizmos.color = Color.green;
-        // } else {
-        //     Gizmos.color = Color.red;
-        // }
-
-        // // Dessiner le rectangle
-        // Gizmos.DrawWireCube(new Vector3(center.x, 0.01f, center.z), new Vector3(width, 0.02f, length));
-    }
 
     public float CenterOfGravityReward()
     {
@@ -1299,146 +1301,171 @@ public class RobotWalk : Agent
             Vector2 centreDroite = new Vector2(Foot_LEFT.position.x-0.3f, Foot_LEFT.position.z);
             distanceToCoGFromLeftFoot = Vector2.Distance(centreGauche, closestPoint);
             distanceToCoGFromRightFoot = Vector2.Distance(centreDroite, closestPoint);
-        //}
-        // Vector3 min = Vector3.Min(Foot_LEFT.position, Foot_RIGHT.position);
-        // Vector3 max = Vector3.Max(Foot_LEFT.position, Foot_RIGHT.position);
-        // Vector3 center = (min + max) / 2;
-        // float width = Mathf.Abs(max.x - min.x);
-        // float length = Mathf.Abs(max.z - min.z);
 
-        // // Définir la couleur du Gizmo en fonction de la position du centre de gravité
-        // Rect footRect = new Rect(min.x, min.z, width, length);
-        // if (footRect.Contains(new Vector2(CoG.x, CoG.z))) {
-        //     Gizmos.color = Color.green;
-        // } else {
-        //     Gizmos.color = Color.red;
-        // }
+        if(corners != null)
+        {
+            Gizmos.color = isCoGInside ? Color.green : Color.red;
+            DrawPolygon(corners);
+        }
+        //var bpDict = m_JdController.bodyPartsDict;
 
-        // // Dessiner le rectangle
-        // Gizmos.DrawWireCube(new Vector3(center.x, 0.01f, center.z), new Vector3(width, 0.02f, length));
-        ///////////////////////////////////////////////////////////
-        ///
+        Vector3 worldAnchorLeft = new Vector3(Foot_LEFT.TransformPoint(jointLeft.anchor).x,0f, Foot_LEFT.TransformPoint(jointLeft.anchor).z);
+        Vector3 worldAnchorRight = new Vector3(Foot_RIGHT.TransformPoint(jointRight.anchor).x,0f, Foot_RIGHT.TransformPoint(jointRight.anchor).z);
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawLine(worldAnchorLeft, worldAnchorRight);
 
 
-        // Vector3 positionLeft;
-        // Vector3 positionRight;
-        // if(footLeftOnGround == footRightOnGround)
-        // {
-        //     positionLeft = Foot_LEFT.position;
-        //     positionLeft.x += 0.2f;
-        //     positionRight = Foot_RIGHT.position;
-        //     positionRight.x -= 0.2f;
-        // }
-        // else if(footLeftOnGround)
-        // {
-        //     positionLeft = Foot_LEFT.position;
-        //     positionLeft.x += 0.2f;
-        //     Vector3 test = Foot_RIGHT.position;
-        //     test.x -= 1f;
-        //     test.y = Foot_LEFT.position.y;
-        //     positionRight = test;
-        // }
-        // else
-        // {
-        //     positionLeft = Foot_RIGHT.position;
-        //     positionRight = Foot_RIGHT.position;   
-        // }
+        float circlePosition = DetermineSupportFoot();
+        Vector3 circleCenter = Vector3.Lerp(worldAnchorLeft, worldAnchorRight, (circlePosition + 1f) / 2f);
+        DrawGizmoCircle(circleCenter, 0.1f);
 
-        // // Calcul de l'orientation et de la distance
-        // Vector3 direction = (positionRight - positionLeft).normalized;
-        // float distance = Vector3.Distance(positionLeft, positionRight);
+    }
+    public float DetermineSupportFoot()
+    {
+        // Calculer les distances du bassin aux pieds sur les axes X et Z
+        float distanceToLeftFoot = Vector2.Distance(
+            new Vector2(Bassin.position.x, Bassin.position.z), 
+            new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z));
 
-        // // Dimensions du rectangle
-        // float width = Mathf.Max(1f, distance + 0.5f);  // Largeur constante du rectangle
-        // float length =  0.6f;// Longueur adaptée à la distance entre les pieds
+        float distanceToRightFoot = Vector2.Distance(
+            new Vector2(Bassin.position.x, Bassin.position.z), 
+            new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z));
 
-        // // Centre et rotation
-        // Vector3 center = (positionLeft + positionRight) / 2;
-        // Quaternion rotation = Quaternion.LookRotation(direction);
+        // Calculer la différence des distances normalisée
+        if (distanceToLeftFoot == distanceToRightFoot)
+        {
+            return 0;  // Les pieds sont à équidistance
+        }
+        else
+        {
+            // Retourne une valeur proportionnelle où -1 et 1 sont les extrêmes
+            float normalizedDifference = (distanceToRightFoot - distanceToLeftFoot) / (distanceToLeftFoot + distanceToRightFoot);
+            float sensitivity = 5f;
+            normalizedDifference *= sensitivity;
+            // Clamper la valeur entre -1 et 1 pour éviter des extrêmes hors de cet intervalle
+            normalizedDifference = Mathf.Clamp(normalizedDifference, -1, 1);
+            return -normalizedDifference; // Inverser pour que -1 soit pied gauche et 1 pied droit
+        }
+    }
+    void DrawGizmoCircle(Vector3 position, float radius)
+    {
+        const int segmentCount = 20;  // Nombre de segments pour dessiner le cercle
+        Vector3 prevPos = position + new Vector3(radius, 0, 0);
 
-        // // Transformer le point CoG en coordonnées locales du rectangle
-        // Vector3 localCoG = Quaternion.Inverse(rotation) * (CoG - center);
+        for (int i = 1; i <= segmentCount; i++)
+        {
+            float angle = i * Mathf.PI * 2f / segmentCount;
+            Vector3 newPos = position + new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius);
+            Gizmos.DrawLine(prevPos, newPos);
+            prevPos = newPos;
+        }
+    }
+    private void GetStability()
+    {
+        GameObject footLEFT = GameObject.Find("Pied.L");
+        GameObject footRIGHT = GameObject.Find("Pied.R");
+        Vector3 CoG = CalculateCenterOfGravity();
+        corners = null;
+        isCoGInside = false;
+        if (footLeftOnGround && footRightOnGround)
+        {
+            corners = GetFootBounds(Foot_LEFT, Foot_RIGHT);
 
-        // // Vérification si le CoG est à l'intérieur du rectangle en coordonnées locales
-        // if (localCoG.x >= -length / 2 && localCoG.x <= length / 2 && localCoG.z >= -width / 2 && localCoG.z <= width / 2) {
-        //     Gizmos.color = Color.green;
-        // } else {
-        //     Gizmos.color = Color.red;
-        // }
+            isCoGInside = IsPointInPolygon(4, corners, CoG);
+            //Gizmos.color = isCoGInside ? Color.green : Color.red;
 
-        // // Dessiner le rectangle
-        // Gizmos.matrix = Matrix4x4.TRS(center, rotation, Vector3.one);
-        // Gizmos.DrawWireCube(Vector3.zero, new Vector3(length, 0.02f, width)); // Notez l'inversion de length et width ici
-        // Gizmos.matrix = Matrix4x4.identity;
+            //DrawPolygon(corners);
+            //Debug.Log("CoG inside both feet bounds: " + isCoGInside);
+        }
+        else if (footLeftOnGround || footRightOnGround)
+        {
+            Transform  footOnGround = footLeftOnGround ? Foot_LEFT : Foot_RIGHT;
+            corners = GetFootBounds(footOnGround);
+
+            isCoGInside = IsPointInPolygon(4, corners, CoG);
+            //Gizmos.color = isCoGInside ? Color.green : Color.red;
+            //DrawPolygon(corners);
+            //Debug.Log("Single foot on ground, not checking CoG inside bounds");
+        }
+    }
+    Vector3[] GetFootBounds(Transform  footLEFT, Transform  footRIGHT = null)
+    {
+        Renderer rendererL = footLEFT.GetComponent<Renderer>();
+        Vector3 centerL = rendererL.bounds.center;
+        Vector3 extentsL = rendererL.bounds.extents;
+        Quaternion rotationL = footLEFT.transform.rotation;  // Rotation du pied gauche
+
+        Vector3[] corners = new Vector3[4];
+
+        if (footRIGHT != null)
+        {
+            Renderer rendererR = footRIGHT.GetComponent<Renderer>();
+            Vector3 centerR = rendererR.bounds.center;
+            Vector3 extentsR = rendererR.bounds.extents;
+            Quaternion rotationR = footRIGHT.transform.rotation;  // Rotation du pied droit
+
+            // Applique la rotation du pied à chaque coin
+            corners[0] = centerR + rotationR * new Vector3(extentsR.x, 0, extentsR.z);  // Front Right
+            corners[1] = centerL + rotationL * new Vector3(-extentsL.x, 0, extentsL.z); // Front Left
+            corners[2] = centerL + rotationL * new Vector3(-extentsL.x, 0, -extentsL.z); // Back Left
+            corners[3] = centerR + rotationR * new Vector3(extentsR.x, 0, -extentsR.z); // Back Right
+        }
+        else
+        {
+            float decalageLeft = footRightOnGround ? -.5f :0;
+            float decalageRight = footRightOnGround ? 0:.5f;
+            float distanceAutrePied = footLeftOnGround ? Foot_RIGHT.localPosition.z - Foot_LEFT.localPosition.z: Foot_LEFT.localPosition.z - Foot_RIGHT.localPosition.z;
+            float distanceOnLeftSide = footLeftOnGround?  0f:Foot_LEFT.localPosition.z - Foot_RIGHT.localPosition.z;
+            float diatanceOnRightSide = footLeftOnGround? Foot_RIGHT.localPosition.z - Foot_LEFT.localPosition.z : 0f;
+            // S'il n'y a qu'un pied, appliquez simplement la rotation de ce pied à tous les coins
+            corners[0] = centerL + rotationL * new Vector3(extentsL.x+decalageRight, 0, extentsL.z+diatanceOnRightSide);// Front Right
+            corners[1] = centerL + rotationL * new Vector3(-extentsL.x+decalageLeft, 0, extentsL.z+distanceOnLeftSide);// Front Left
+            corners[2] = centerL + rotationL * new Vector3(-extentsL.x+decalageLeft, 0, -extentsL.z+distanceOnLeftSide/2);// Back Left
+            corners[3] = centerL + rotationL * new Vector3(extentsL.x+decalageRight, 0, -extentsL.z+diatanceOnRightSide/2);// Back Right
+        }
+
+        return corners;
+    }
 
 
-        // Vector3 footLeftPosition = Foot_LEFT.position;
-        // Vector3 footRightPosition = Foot_RIGHT.position;
+    void DrawPolygon(Vector3[] corners)
+    {
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Gizmos.DrawLine(corners[i], corners[(i + 1) % corners.Length]);
+        }
+    }
+    bool IsPointInPolygon(int n, Vector3[] polygon, Vector3 p)
+    {
+        int counter = 0;
+        int i;
+        double xinters;
+        Vector3 p1, p2;
 
-        // // Obtenir la rotation du pied gauche
-        // Quaternion footRotation = Foot_LEFT.rotation;
+        p1 = polygon[0];
+        for (i = 1; i <= n; i++)
+        {
+            p2 = polygon[i % n];
+            if (p.z > Mathf.Min(p1.z, p2.z))
+            {
+                if (p.z <= Mathf.Max(p1.z, p2.z))
+                {
+                    if (p.x <= Mathf.Max(p1.x, p2.x))
+                    {
+                        if (p1.z != p2.z)
+                        {
+                            xinters = (p.z - p1.z) * (p2.x - p1.x) / (p2.z - p1.z) + p1.x;
+                            if (p1.x == p2.x || p.x <= xinters)
+                                counter++;
+                        }
+                    }
+                }
+            }
+            p1 = p2;
+        }
 
-        // // Calculer la direction et la distance entre les pieds
-        // Vector3 direction = (footRightPosition - footLeftPosition).normalized;
-        // float distance = Vector3.Distance(footLeftPosition, footRightPosition);
-
-        // // Déterminer la largeur et la longueur du rectangle
-        // float width = 0.5f; // Supposons que la largeur du pied est de 0.5 mètre
-        // float length = distance; // La longueur entre les deux pieds
-
-        // // Utiliser la rotation du pied pour ajuster les points
-        // Vector3 forward = footRotation * Vector3.forward * length / 2;
-        // Vector3 right = footRotation * Vector3.right * width / 2;
-
-        // Vector3[] corners = new Vector3[4];
-        // corners[0] = footLeftPosition - right - forward;
-        // corners[1] = footLeftPosition + right - forward;
-        // corners[2] = footLeftPosition + right + forward;
-        // corners[3] = footLeftPosition - right + forward;
-
-        // // Dessiner le rectangle
-        // Gizmos.color = Color.green;
-        // for (int i = 0; i < 4; i++) {
-        //     Gizmos.DrawLine(corners[i], corners[(i + 1) % 4]);
-        // }
-
-        // Calculer la direction et la position moyenne entre les deux pieds
-        // Vector3 midPoint2 = (Foot_LEFT.position + Foot_RIGHT.position) / 2;
-        // Vector3 direction = (Foot_RIGHT.position - Foot_LEFT.position).normalized;
-        // float distance = Vector3.Distance(Foot_LEFT.position, Foot_RIGHT.position);
-        // Quaternion rotation = Quaternion.LookRotation(direction);
-
-        // // Déterminer la largeur et la longueur du rectangle
-        // float width = 0.9f;  // Supposons que la largeur d'un pied est de 0.5 mètre
-        // float length = footLeftOnGround && footRightOnGround ? distance : distance * 0.55f;  // 75% de la distance si un pied est en l'air
-
-        // // Ajuster le centre en fonction des pieds au sol
-        // Vector3 center = midPoint2;
-        // if (!footLeftOnGround || !footRightOnGround) {
-        //     center = footLeftOnGround ? Foot_LEFT.position + (direction * (length / 2)) : Foot_RIGHT.position - (direction * (length / 2));
-        // }
-
-        // // Transformer le CoG pour la vérification
-        // Vector3 localCoG = Quaternion.Inverse(rotation) * (CoG - center);
-
-        // // Vérifier si le centre de gravité est dans le rectangle
-        // bool isCoGInside = Mathf.Abs(localCoG.x) <= (width / 2) && Mathf.Abs(localCoG.z) <= (length / 2);
-        // Gizmos.color = isCoGInside ? Color.green : Color.red;
-
-        // // Dessiner le rectangle
-        // Vector3 localForward = rotation * Vector3.forward * length / 2;
-        // Vector3 localRight = rotation * Vector3.right * width / 2;
-
-        // Vector3[] corners = new Vector3[4];
-        // corners[0] = center - localRight - localForward;
-        // corners[1] = center + localRight - localForward;
-        // corners[2] = center + localRight + localForward;
-        // corners[3] = center - localRight + localForward;
-
-        // for (int i = 0; i < 4; i++) {
-        //     Gizmos.DrawLine(corners[i], corners[(i + 1) % 4]);
-        // }
-
+        return counter % 2 != 0;
     }
 
     private void CaluculCog()
@@ -1497,10 +1524,6 @@ public class RobotWalk : Agent
         }
     }
 
-    public void AddLog(string def, float value, StatAggregationMethod type=StatAggregationMethod.Average)
-    {
-        Academy.Instance.StatsRecorder.Add(def, value, type);
-    }
 
      //Update OrientationCube and DirectionIndicator
     void UpdateOrientationObjects()
@@ -1514,8 +1537,32 @@ public class RobotWalk : Agent
     }
     public void CatchTarget()
     {
-        reward(targetConsecutive*100 + 1f, "Cube touched",StatAggregationMethod.Sum);
+        reward(1f + targetConsecutive, "Cube touched",StatAggregationMethod.Sum);
         targetConsecutive++;
+    }
+
+    public void AddLog(string def, float value, StatAggregationMethod type=StatAggregationMethod.Average)
+    {
+        Academy.Instance.StatsRecorder.Add(def, value, type);
+    }
+    void Update()
+    {
+        RaycastHit hit;
+        int groundLayerMask = 1 << LayerMask.NameToLayer("Devetik_Floor");  // Assurez-vous que ce layer est correctement configuré
+
+        // Envoyer un rayon depuis chaque pied vers le bas
+        if (Physics.Raycast(Head.position, Vector3.down, out hit, 6f, groundLayerMask))
+        {
+            currentProportionalHeadHeight = System.Math.Min((hit.distance-0.55f) / (normalHeadHeight-0.55f), 1);
+            currentHeadHeight = hit.distance;
+        }
+        if (Physics.Raycast(Bassin.position, Vector3.down, out hit, 6f, groundLayerMask))
+        {
+            currentProportionalBassinHeight = System.Math.Min((hit.distance-0.3f) / (normalBassinHeight-0.3f), 1);
+            currentBassinHeight = hit.distance;
+        }
+        AddLog("Bassin",currentProportionalBassinHeight);
+        AddLog("Head", currentProportionalHeadHeight);
     }
 }
 

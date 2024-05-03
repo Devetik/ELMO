@@ -36,6 +36,8 @@ public class VariableCustom
     public int footR1;
     public int footR2;
     public int footR3;
+    public int PecL;
+    public int PecR;
 
     private RobotWalk agent;
     private StepReward stepReward;

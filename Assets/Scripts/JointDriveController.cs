@@ -1,10 +1,14 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Serialization;
 using Unity.MLAgents;
 using Unity.VisualScripting;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Security.Cryptography;
+using Unity.Mathematics;
 
 namespace Unity.MLAgentsExamples
 {
@@ -52,18 +56,21 @@ namespace Unity.MLAgentsExamples
         private float MaxFatigue = 100f;
         private const float RecoveryRate = 1f;
 
+
         /// <summary>
         /// Reset body part to initial configuration.
         /// </summary>
-        public void Reset(BodyPart bp, Vector3 modification)
+        public void Reset(BodyPart bp)
         {
+            // bp.rb.transform.localPosition = bp.startingPos;
+            // bp.rb.transform.localRotation = bp.startingRot;
             if (bp.rb != null && bp.rb.isKinematic == false)
             {
                 bp.rb.velocity = Vector3.zero;
                 bp.rb.angularVelocity = Vector3.zero;
                 bp.rb.isKinematic = true;
-                bp.rb.transform.position = bp.startingPos + modification;
-                bp.rb.transform.rotation = bp.startingRot;
+                bp.rb.transform.localPosition = bp.startingPos;
+                bp.rb.transform.localRotation = bp.startingRot;
                 bp.rb.isKinematic = false;
             }
             if (bp.groundContact)
@@ -77,6 +84,7 @@ namespace Unity.MLAgentsExamples
             }
             bp.muscleFatigue = 0f;
         }
+
         private float CalculeFatigue(float x = 0, float y = 0, float z= 0)
         {
             float[] numbers = { Math.Abs(x), Math.Abs(y), Math.Abs(z) };
@@ -161,8 +169,8 @@ namespace Unity.MLAgentsExamples
             {
                 rb = t.GetComponent<Rigidbody>(),
                 joint = t.GetComponent<ConfigurableJoint>(),
-                startingPos = t.position,
-                startingRot = t.rotation
+                startingPos = t.localPosition,
+                startingRot = t.localRotation
             };
             bp.Name = name;
             bp.rb.maxAngularVelocity = k_MaxAngularVelocity;
@@ -223,3 +231,4 @@ namespace Unity.MLAgentsExamples
         }
     }
 }
+

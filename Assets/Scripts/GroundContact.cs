@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.MLAgents;
+using Unity.VisualScripting;
 
 namespace Unity.MLAgentsExamples
 {
@@ -30,12 +31,13 @@ namespace Unity.MLAgentsExamples
                 touchingGround = true;
                 if (penalizeGroundContact)
                 {
-                    //agent.reward(groundContactPenalty);
+                    agent.reward(groundContactPenalty);
+                    agent.AddLog("Floor penalty", groundContactPenalty, StatAggregationMethod.Sum);
                 }
 
                 if (agentDoneOnGroundContact)
                 {
-                    //agent.EndEpisode();
+                    agent.EndEpisode();
                 }
             }
         }
@@ -49,6 +51,15 @@ namespace Unity.MLAgentsExamples
             if (other.transform.CompareTag(k_Ground))
             {
                 touchingGround = false;
+            }
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if(other.gameObject.tag == "Walls")
+            {
+                agent.reward(-100f);
+                agent.EndEpisode();
             }
         }
     }
