@@ -78,9 +78,16 @@ namespace Unity.MLAgentsExamples
         /// </summary>
         public void MoveTargetToRandomPosition()
         {
-            var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
-            newTargetPos.y = m_startingPos.y;
-            transform.position = newTargetPos;
+            // if(robotWalk.enTest)
+            // {
+            //     transform.position = new Vector3(0,0.5f,10f);
+            // }
+            // else
+            // {                
+                var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
+                newTargetPos.y = m_startingPos.y;
+                transform.position = newTargetPos;
+            //}
         }
 
         private void OnCollisionEnter(Collision col)
@@ -95,6 +102,7 @@ namespace Unity.MLAgentsExamples
                 if (respawnIfTouched)
                 {
                     MoveTargetToRandomPosition();
+                    robotWalk.UpdateOrientationObjects();
                 }
             }
         }

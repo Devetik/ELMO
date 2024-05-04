@@ -18,8 +18,8 @@ using Unity.MLAgentsExamples;
 
 public class RobotWalk : Agent
 {
-    private bool enTest = true;
-    private bool enTestUnit = false;
+    public bool enTest;
+    public bool enTestUnit = false;
     private Vector3[] corners;
     private bool isCoGInside = false;
     [Header("Target To Walk Towards")] public Transform target; //Target the agent will walk towards during training.
@@ -34,7 +34,7 @@ public class RobotWalk : Agent
         get { return m_TargetWalkingSpeed; }
         set { m_TargetWalkingSpeed = Mathf.Clamp(value, .1f, m_maxWalkingSpeed); }
     }
-    const float m_maxWalkingSpeed = 6; //The max walking speed
+    const float m_maxWalkingSpeed = 5; //The max walking speed
     //Should the agent sample a new goal velocity each episode?
     //If true, walkSpeed will be randomly set between zero and m_maxWalkingSpeed in OnEpisodeBegin()
     //If false, the goal velocity will be walkingSpeed
@@ -50,6 +50,8 @@ public class RobotWalk : Agent
     public Transform Target;
     public Transform Pressure_Plate;
     public ColorChanger colorChanger;
+    public ConfigurableJoint jointLeft;
+    public ConfigurableJoint jointRight;
     [Header("Body Parts")] 
     public Transform Head;
     public Transform Bassin;
@@ -71,8 +73,7 @@ public class RobotWalk : Agent
     public Transform Shoulder_RIGHT;
     public Transform Forearm_LEFT;
     public Transform Forearm_RIGHT;
-    public ConfigurableJoint jointLeft;
-    public ConfigurableJoint jointRight;
+
 
 
     public float TempsSession = 0f;
@@ -99,6 +100,7 @@ public class RobotWalk : Agent
     private float timeSinceLastStepRight = 0f;
     private bool isLeftFootInFront = false;
     private bool isRightFootInFront = false;
+    private Transform footInFront;
     private bool stepInProgressRight = false;
     private bool stepInProgressLeft = false;
     private bool lastStepInProgress = false;
@@ -136,6 +138,23 @@ public class RobotWalk : Agent
     private float totalFatigue;
     private int startPositionNumber;
     Vector2 positionTorse;
+    float distanceFromCoG;
+    bool isInCoGCircle;
+    private Transform currentAdvancingFoot;
+    private Transform currentSupportFoot;
+    private float currentLeftFootHeight;
+    private float currentRightFootHeight;
+    private float maxVelocity = 5f;
+    private float lastAdvancingFootVelocity;
+    private float lastAdvancingFootHeight;
+    private float topAdvancedFootHeight;
+    private float supportValue = 0f;
+    private float supportFootCoG = 0f;
+    private float positionZFeetAtStart;
+    private bool leftFootStable;
+    private bool rightFootStable;
+    private Transform lastAdvancingFoot;
+    public float timeSinceLastStep;
     
 
     //This will be used as a stabilized model space reference point for observations
@@ -147,7 +166,10 @@ public class RobotWalk : Agent
 
     public override void Initialize()
     {
-        enTestUnit = GameObject.Find("Test").activeSelf;
+        enTest = false;
+        
+        enTestUnit = GameObject.Find("Test") != null? true:false;
+        
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
         m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
 
@@ -194,11 +216,15 @@ public class RobotWalk : Agent
     }
     public override void OnEpisodeBegin()
     {
-        startPositionNumber = UnityEngine.Random.Range(enTest?2:0, 10);
+        timeSinceLastStep = 0f;
+        currentAdvancingFoot = null;
+        currentSupportFoot = null;
+        lastAdvancingFoot = null;
+        startPositionNumber = UnityEngine.Random.Range(enTest?2:2, 10);
         if(startPositionNumber >= 2)//debout
         {
             Agent.localPosition = new Vector3(0,0.0f,0);
-            Agent.localRotation = Quaternion.Euler(UnityEngine.Random.Range(0, 0), UnityEngine.Random.Range(0f, enTestUnit?0f:360f), 0);
+            Agent.localRotation = Quaternion.Euler(UnityEngine.Random.Range(0, 0), UnityEngine.Random.Range(0f, enTestUnit||enTest?0f:360f), 0);
         }else if(startPositionNumber == 0)//Face en avant
         {
             Agent.localPosition = new Vector3(0,1.5f,0);
@@ -219,10 +245,10 @@ public class RobotWalk : Agent
 
         //Set our goal walking speed
         MTargetWalkingSpeed =
-            randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(2f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
+            randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(1f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
         if(randomizeWalkSpeedEachEpisode || speedBeforeOrientate == 0f)
         {
-            speedBeforeOrientate = randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(2f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
+            speedBeforeOrientate = randomizeWalkSpeedEachEpisode ? UnityEngine.Random.Range(1f, m_maxWalkingSpeed) : MTargetWalkingSpeed;
         }
 
         targetConsecutive = 0;
@@ -332,7 +358,6 @@ public class RobotWalk : Agent
 
     void FixedUpdate()
     {
-        GetStability();
         totalFatigue = 0f;
         var bpDict = m_JdController.bodyPartsDict;
         int count = 0;
@@ -344,7 +369,7 @@ public class RobotWalk : Agent
                 count++;
             }
         }
-
+        totalFatigue /= 13f;
         UpdateOrientationObjects();
         footLeftOnGround = IsInContact(Foot_LEFT);
         footRightOnGround = IsInContact(Foot_RIGHT);
@@ -368,7 +393,7 @@ public class RobotWalk : Agent
             );
         }
 
-        if(lookAtTargetReward <= 0.8)
+        if(lookAtTargetReward <= 0.8 && targetConsecutive == 0)
         {
             MTargetWalkingSpeed = 0f;
         }
@@ -391,20 +416,25 @@ public class RobotWalk : Agent
                 $" maximumWalkingSpeed: {m_maxWalkingSpeed}"
             );
         }
-
+        AddLog("Match Speed", matchSpeedReward);
+        AddLog("Look At Target", lookAtTargetReward);
 
         //reward(matchSpeedReward * lookAtTargetReward);
         //Debug.Log("lookAtTargetReward:"+lookAtTargetReward+"  /  matchSpeedReward:"+ (String.Format("{0:F6}", matchSpeedReward)) );
-        reward(matchSpeedReward * lookAtTargetReward, "Look at Target", StatAggregationMethod.Average);
+        reward(matchSpeedReward*100f * lookAtTargetReward, "Look at Target", StatAggregationMethod.Average);
         //reward(lookAtTargetReward * matchSpeedReward , "Look at Target/Matche Speed", StatAggregationMethod.Average);
         canGoForward = lookAtTargetReward > 0.9;
         //reward(CalculateCoGReward()*currentProportionalHeadHeight, "Centre de gravité / Head Height", StatAggregationMethod.Average);
-        reward(totalFatigue/1000);
+        reward(totalFatigue/10);
 
         // //reward(CalculateCoGReward()*matchSpeedReward);
         UpdateFootPosition();
-        reward(lookAtTargetReward*0.1f);
-        reward(isCoGInside ? 10f:-10f);
+        reward(isInCoGCircle ? 10f:-1f);
+        if(!footLeftOnGround && !footRightOnGround)
+        {
+            //reward(-10f);
+        }
+        reward(0.5f-distanceFromCoG);
         // //reward(ApplyStepReward()*lookAtTargetReward, "Foot steps",StatAggregationMethod.Sum);
         // //reward(matchSpeedReward, "Matche Speed", StatAggregationMethod.Average);
 
@@ -701,6 +731,7 @@ public class RobotWalk : Agent
         var velGoal = cubeForward * MTargetWalkingSpeed;
         var avgVel = GetAvgVelocity();
         sensor.AddObservation(canGoForward ? 1f:0f);
+        sensor.AddObservation(timeSinceLastStep/10f);
 
         sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(avgVel));
         sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(velGoal));
@@ -1011,6 +1042,25 @@ public class RobotWalk : Agent
         isRightFootInFront = rightFootPosition.z - leftFootPosition.z > 0.005;
         //Debug.Log(leftFootPosition.z - rightFootPosition.z);
         //Debug.Log(isLeftFootInFront ? "Gauche en avant": isRightFootInFront ? "Droit en avant": "Position NULL");
+        Transform currentFootInFront = isLeftFootInFront ? Foot_LEFT : isRightFootInFront ? Foot_RIGHT : null;
+        if(footInFront != currentFootInFront && currentFootInFront != null)
+        {
+            timeSinceLastStep = currentFootInFront != null ? 0f: timeSinceLastStep;
+            footInFront = currentFootInFront != null ?currentFootInFront : null;
+            //Debug.Log(footInFront == Foot_LEFT ? "Pied gauche en avant":footInFront == Foot_RIGHT? "Pied droite en avant": "Aucuns pieds en avant");
+        }
+        else
+        {
+            timeSinceLastStep += Time.deltaTime;
+            float minustime = 0.475f + 0.254f * (6-m_TargetWalkingSpeed);
+            if(timeSinceLastStep > minustime)
+            {
+                float penalty = -10f * (timeSinceLastStep-minustime);
+                reward(penalty);
+                Debug.Log(penalty+ " after "+(timeSinceLastStep - minustime) + " temps pour pas = "+ minustime);
+            }
+            //Debug.Log(footInFront == Foot_LEFT ? "Pied gauche en avant depuis "+ timeSinceLastStep + " secondes":footInFront == Foot_RIGHT? "Pied droite en avant depuis "+ timeSinceLastStep + " secondes": "Aucuns pieds en avant");
+        }
 
         if(isLeftFootInFront)
         {
@@ -1249,78 +1299,236 @@ public class RobotWalk : Agent
     }
     void OnDrawGizmos()
     {
-        // if (Application.isPlaying) // Assurez-vous que cela est dessiné uniquement si l'application est en cours d'exécution
-        // {
-            Gizmos.color = Color.red;
-            float floorLevel = (Foot_LEFT.position.y + Foot_RIGHT.position.y) / 2;
-            Vector3 floorCoG = CalculateCenterOfGravity();
-            floorCoG = new Vector3(floorCoG.x, floorLevel, floorCoG.z);
-            Gizmos.DrawSphere(floorCoG, 0.1f); // Dessine une petite sphère au centre de gravité
-
-            // Gizmos.color = Color.red;
-            // Gizmos.DrawSphere(floorCoG, 0.1f);
-            // Gizmos.color = Color.blue;
-            // Gizmos.DrawSphere(midpoint, 0.1f);
-            // if (supportingFoot != null) {
-            //     Gizmos.color = Color.green;
-            //     Gizmos.DrawSphere(supportingFoot.position, 0.1f);
-            // }
-            if (Foot_LEFT == null || Foot_RIGHT == null || floorCoG == null)
-            return;
-
-            // Points en 2D pour le calcul
-            Vector2 pointA = new Vector2(Foot_LEFT.position.x, Foot_LEFT.position.z-0.06f+MTargetWalkingSpeed/10);
-            Vector2 pointB = new Vector2(Foot_RIGHT.position.x, Foot_RIGHT.position.z-0.06f+MTargetWalkingSpeed/10);
-            Vector2 pointP = new Vector2(floorCoG.x, floorCoG.z);
-
-            // Vecteur direction de la ligne
-            Vector2 lineDirection = (pointB - pointA).normalized;
-
-            // Calculer la composante perpendiculaire
-            Vector2 perpendicular = Vector2.Perpendicular(lineDirection).normalized;
-
-            // Trouver le point sur la ligne le plus proche de CoG
-            float t = Vector2.Dot(pointP - pointA, lineDirection);
-            Vector2 closestPoint = pointA + t * lineDirection;
-
-            // Dessiner la ligne entre les deux pieds
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(new Vector3(pointA.x, 0, pointA.y), new Vector3(pointB.x, 0, pointB.y));
-
-            // Dessiner la perpendiculaire du CoG à la ligne
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(new Vector3(closestPoint.x, 0, closestPoint.y), new Vector3(pointP.x, 0, pointP.y));
-
-            // Optionnel: Afficher la distance comme label
-            PerpendicularDistanceFromGoC = Vector2.Dot(pointP - pointA, perpendicular);
-            GUIStyle style = new GUIStyle();
-            style.normal.textColor = Color.white;
-            Vector3 midPoint = (new Vector3(closestPoint.x, 0, closestPoint.y) + new Vector3(pointP.x, 0, pointP.y)) / 2;
-            Handles.Label(midPoint, $"Distance: {PerpendicularDistanceFromGoC:F2}", style);
-            Vector2 centreGauche = new Vector2(Foot_LEFT.position.x+0.3f, Foot_LEFT.position.z);
-            Vector2 centreDroite = new Vector2(Foot_LEFT.position.x-0.3f, Foot_LEFT.position.z);
-            distanceToCoGFromLeftFoot = Vector2.Distance(centreGauche, closestPoint);
-            distanceToCoGFromRightFoot = Vector2.Distance(centreDroite, closestPoint);
-
-        if(corners != null)
-        {
-            Gizmos.color = isCoGInside ? Color.green : Color.red;
-            DrawPolygon(corners);
-        }
-        //var bpDict = m_JdController.bodyPartsDict;
+        //Dessice une sphere sur le sol qui indique le centre de gravité
+        Gizmos.color = Color.red;
+        Vector3 floorCoG = CalculateCenterOfGravity();
+        floorCoG = new Vector3(floorCoG.x, 0f, floorCoG.z);
+        Gizmos.DrawSphere(floorCoG, 0.05f); // Dessine une petite sphère au centre de gravité
 
         Vector3 worldAnchorLeft = new Vector3(Foot_LEFT.TransformPoint(jointLeft.anchor).x,0f, Foot_LEFT.TransformPoint(jointLeft.anchor).z);
         Vector3 worldAnchorRight = new Vector3(Foot_RIGHT.TransformPoint(jointRight.anchor).x,0f, Foot_RIGHT.TransformPoint(jointRight.anchor).z);
 
         Gizmos.color = Color.green;
         Gizmos.DrawLine(worldAnchorLeft, worldAnchorRight);
+        Gizmos.color = leftFootStable? Color.green: Color.red;
+        Gizmos.DrawSphere(worldAnchorLeft, 0.05f);
+        Gizmos.color = rightFootStable? Color.green: Color.red;
+        Gizmos.DrawSphere(worldAnchorRight, 0.05f);
 
 
-        float circlePosition = DetermineSupportFoot();
+        float circlePosition = supportFootCoG;
+        //Debug.Log(supportFootCoG);
         Vector3 circleCenter = Vector3.Lerp(worldAnchorLeft, worldAnchorRight, (circlePosition + 1f) / 2f);
-        DrawGizmoCircle(circleCenter, 0.1f);
+        distanceFromCoG = Vector3.Distance(circleCenter, floorCoG);
+        isInCoGCircle = distanceFromCoG < 0.5f;
+        DrawGizmoCircle(circleCenter, 0.5f, isInCoGCircle);
+        //Debug.Log(DetermineSupportFootV2());
 
     }
+    private void DetemineSupportFootV3()
+    {
+        const float maxCoGPosition = 0.7f;
+        const float minCogPosition = -0.7f;
+        Vector3 leftVelocity = m_JdController.bodyPartsDict[Foot_LEFT].rb.velocity;
+        Vector3 rightVelocity = m_JdController.bodyPartsDict[Foot_RIGHT].rb.velocity;
+
+        //Détermine si un pied est stable ou non
+        leftFootStable = leftVelocity.magnitude < 0.3f && currentLeftFootHeight < 0.2f && footLeftOnGround && leftFootAngle < 10f;
+        rightFootStable = rightVelocity.magnitude < 0.3f && currentRightFootHeight < 0.2f && footRightOnGround && rightFootAngle < 10f;
+
+        //Reset du pied d'avance si le pied stable ne l'est plus.
+        if((currentAdvancingFoot == Foot_LEFT && !rightFootStable) || (currentAdvancingFoot == Foot_RIGHT && !leftFootStable))
+        {
+            currentAdvancingFoot = null;
+            currentSupportFoot = null;
+        }
+        
+        if (currentAdvancingFoot == null)
+        {
+            if (!leftFootStable && rightFootStable && lastAdvancingFoot != Foot_LEFT)
+            {
+                currentAdvancingFoot = Foot_LEFT;
+                lastAdvancingFootHeight = currentLeftFootHeight;
+                lastAdvancingFootVelocity = leftVelocity.magnitude;
+                supportFootCoG = currentSupportFoot == null ? 0.05f: currentSupportFoot == Foot_LEFT? minCogPosition : maxCoGPosition;
+                positionZFeetAtStart = Foot_LEFT.localPosition.z;
+            }
+            else if (leftFootStable && !rightFootStable && lastAdvancingFoot != Foot_RIGHT)
+            {
+                currentAdvancingFoot = Foot_RIGHT;
+                lastAdvancingFootHeight = currentRightFootHeight;
+                lastAdvancingFootVelocity = rightVelocity.magnitude;
+                supportFootCoG = currentSupportFoot == null ? -0.05f: currentSupportFoot == Foot_LEFT? minCogPosition : maxCoGPosition;
+                positionZFeetAtStart = Foot_RIGHT.localPosition.z;
+            }
+            else
+            {
+                supportFootCoG = currentSupportFoot == null ? 0f: currentSupportFoot == Foot_LEFT? minCogPosition : maxCoGPosition;
+                lastAdvancingFootHeight = 0f;
+                lastAdvancingFootVelocity = 0f;
+            }
+
+        }
+        else if(currentAdvancingFoot == Foot_LEFT)
+        {
+            if(currentLeftFootHeight > lastAdvancingFootHeight)
+            {
+                topAdvancedFootHeight = Math.Max(topAdvancedFootHeight, currentLeftFootHeight);
+                float heightDifference = currentLeftFootHeight - lastAdvancingFootHeight;
+                //float normalizedChange = heightDifference ;/// topAdvancedFootHeight;
+                float adjustmentFactor = 0.5f;
+                supportFootCoG += heightDifference * adjustmentFactor;
+                supportFootCoG = Mathf.Clamp(supportFootCoG, minCogPosition ,  maxCoGPosition);
+            }
+            else if(currentLeftFootHeight < lastAdvancingFootHeight)
+            {
+
+                float heightDifference = lastAdvancingFootHeight - currentLeftFootHeight;
+                float normalizedChange = heightDifference / topAdvancedFootHeight;
+
+                // Ajuster supportFootCoG en utilisant le changement normalisé, multiplié par un facteur d'ajustement pour contrôler la vitesse de changement
+                float adjustmentFactor = 2.0f; // Ajustez cette valeur pour contrôler la vitesse de la transition
+                supportFootCoG -= normalizedChange * adjustmentFactor;
+
+                // Clamper supportFootCoG entre -1 et 1 pour s'assurer qu'il ne dépasse pas ces bornes
+                supportFootCoG = Mathf.Clamp(supportFootCoG, minCogPosition ,  maxCoGPosition);
+            }
+
+            if(leftFootStable)
+            {
+                currentAdvancingFoot = null;
+                currentSupportFoot = Foot_LEFT;
+                lastAdvancingFootHeight = 0f;
+                lastAdvancingFootVelocity = 0f;
+                topAdvancedFootHeight = 0f;
+                float positionZFeetAtEnd = Foot_LEFT.localPosition.z;
+                float footTravel =positionZFeetAtStart - positionZFeetAtEnd;
+                //reward(footTravel*100000f);
+            }
+            else
+            {
+                lastAdvancingFootHeight = currentLeftFootHeight;
+                lastAdvancingFootVelocity = leftVelocity.magnitude;
+            }
+        }
+        else if(currentAdvancingFoot == Foot_RIGHT)
+        {
+            if(rightVelocity.magnitude > lastAdvancingFootVelocity)
+            {
+                //supportFootCoG *= 1.001f;
+            }
+            if(currentRightFootHeight > lastAdvancingFootHeight)
+            {
+                //Debug.Log("Monte "+currentRightFootHeight);
+                // supportFootCoG += lastAdvancingFootHeight - currentRightFootHeight;
+                // supportFootCoG = Mathf.Clamp(supportFootCoG, minCogPosition ,  maxCoGPosition);
+                topAdvancedFootHeight = Math.Max(topAdvancedFootHeight, currentRightFootHeight);
+
+                float heightDifference = lastAdvancingFootHeight - currentRightFootHeight;
+                float normalizedChange = heightDifference / topAdvancedFootHeight;
+
+                // Ajuster supportFootCoG en utilisant le changement normalisé, multiplié par un facteur d'ajustement pour contrôler la vitesse de changement
+                float adjustmentFactor = 1.0f; // Ajustez cette valeur pour contrôler la vitesse de la transition
+                supportFootCoG += normalizedChange * adjustmentFactor;
+
+                // Clamper supportFootCoG entre -1 et 1 pour s'assurer qu'il ne dépasse pas ces bornes
+                supportFootCoG = Mathf.Clamp(supportFootCoG, minCogPosition ,  maxCoGPosition);
+            }
+            else if(currentRightFootHeight < lastAdvancingFootHeight)
+            {
+                //Debug.Log("Baiss "+currentRightFootHeight);
+                //supportFootCoG += lastAdvancingFootHeight - currentRightFootHeight;
+                // supportFootCoG = 1 - topAdvancedFootHeight/(topAdvancedFootHeight - currentRightFootHeight); //-> doit arriver à 1
+                // supportFootCoG = Math.Max(Math.Min(supportFootCoG, 1f), -1f);
+                // Calculer le changement proportionnel en fonction de la différence de hauteur et de la hauteur maximale atteinte
+                float heightDifference =  currentRightFootHeight -lastAdvancingFootHeight;
+                float normalizedChange = heightDifference / topAdvancedFootHeight;
+
+                // Ajuster supportFootCoG en utilisant le changement normalisé, multiplié par un facteur d'ajustement pour contrôler la vitesse de changement
+                float adjustmentFactor = 2.0f; // Ajustez cette valeur pour contrôler la vitesse de la transition
+                supportFootCoG -= normalizedChange * adjustmentFactor;
+
+                // Clamper supportFootCoG entre -1 et 1 pour s'assurer qu'il ne dépasse pas ces bornes
+                supportFootCoG = Mathf.Clamp(supportFootCoG, minCogPosition ,  maxCoGPosition);
+            }
+            
+
+            if(rightFootStable)
+            {
+                currentAdvancingFoot = null;
+                currentSupportFoot = Foot_RIGHT;
+                lastAdvancingFootHeight = 0f;
+                lastAdvancingFootVelocity = 0f;
+                topAdvancedFootHeight = 0f;
+                float positionZFeetAtEnd = Foot_RIGHT.localPosition.z;
+                float footTravel =positionZFeetAtStart - positionZFeetAtEnd;
+                //reward(footTravel*100000f);
+            }
+            else
+            {
+                lastAdvancingFootHeight = currentRightFootHeight;
+                lastAdvancingFootVelocity = rightVelocity.magnitude;
+            }
+        }
+    }
+    // public float DetermineSupportFootV2()
+    // {
+    //     Vector3 leftVelocity = m_JdController.bodyPartsDict[Foot_LEFT].rb.velocity;
+    //     Vector3 rightVelocity = m_JdController.bodyPartsDict[Foot_RIGHT].rb.velocity;
+    //     float leftHeight = Foot_LEFT.position.y;  // Assumer que la hauteur est mesurée sur l'axe y
+    //     float rightHeight = Foot_RIGHT.position.y;
+
+    //     // Déterminer le pied en avancement basé sur la vélocité et la hauteur
+    //     if (currentAdvancingFoot == null)
+    //     {
+    //         if (leftVelocity.magnitude > rightVelocity.magnitude || leftHeight > rightHeight)
+    //         {
+    //             currentAdvancingFoot = Foot_LEFT;
+    //             lastSupportFoot = Foot_RIGHT;
+    //         }
+    //         else
+    //         {
+    //             currentAdvancingFoot = Foot_RIGHT;
+    //             lastSupportFoot = Foot_LEFT;
+    //         }
+    //     }
+
+    //     // Calculer la valeur de support en fonction du pied en avancement
+    //     if (currentAdvancingFoot == Foot_LEFT)
+    //     {
+    //         // Plus le pied gauche avance, plus cette valeur se rapproche de 1
+    //         supportValue -= Mathf.Clamp01(leftVelocity.magnitude / maxVelocity);
+    //     }
+    //     else if (currentAdvancingFoot == Foot_RIGHT)
+    //     {
+    //         // Plus le pied droit avance, plus cette valeur se rapproche de -1
+    //         supportValue += Mathf.Clamp01(rightVelocity.magnitude / maxVelocity);
+    //     }
+
+    //     // Normaliser la valeur de support pour qu'elle ne dépasse jamais les limites de -1 et 1
+    //     supportValue = Mathf.Clamp(supportValue, -1, 1);
+
+    //     // Vérifier si le pied en avancement doit devenir le pied de support
+    //     if (Mathf.Abs(currentAdvancingFoot.position.y - lastSupportFoot.position.y) < 0.1f &&
+    //         currentAdvancingFoot.GetComponent<Rigidbody>().velocity.magnitude < 0.1f)
+    //     {
+    //         lastSupportFoot = currentAdvancingFoot;
+    //         currentAdvancingFoot = null;  // Réinitialiser le pied en avancement
+    //         supportValue = (lastSupportFoot == Foot_LEFT) ? 1 : -1;  // Mettre à jour la valeur de support
+    //     }
+    //     supportFootCoG = supportValue;
+    //     return supportValue;
+    // }
+
+    private float NormalizeHeight(float footHeight)
+    {
+        return Mathf.Clamp01(footHeight / maxVelocity);
+    }
+
+
+   
+    
+
     public float DetermineSupportFoot()
     {
         // Calculer les distances du bassin aux pieds sur les axes X et Z
@@ -1341,14 +1549,14 @@ public class RobotWalk : Agent
         {
             // Retourne une valeur proportionnelle où -1 et 1 sont les extrêmes
             float normalizedDifference = (distanceToRightFoot - distanceToLeftFoot) / (distanceToLeftFoot + distanceToRightFoot);
-            float sensitivity = 5f;
+            float sensitivity = 2.5f;
             normalizedDifference *= sensitivity;
             // Clamper la valeur entre -1 et 1 pour éviter des extrêmes hors de cet intervalle
             normalizedDifference = Mathf.Clamp(normalizedDifference, -1, 1);
             return -normalizedDifference; // Inverser pour que -1 soit pied gauche et 1 pied droit
         }
     }
-    void DrawGizmoCircle(Vector3 position, float radius)
+    void DrawGizmoCircle(Vector3 position, float radius, bool inCircle)
     {
         const int segmentCount = 20;  // Nombre de segments pour dessiner le cercle
         Vector3 prevPos = position + new Vector3(radius, 0, 0);
@@ -1357,38 +1565,12 @@ public class RobotWalk : Agent
         {
             float angle = i * Mathf.PI * 2f / segmentCount;
             Vector3 newPos = position + new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius);
+            Gizmos.color = inCircle? Color.green: Color.red;
             Gizmos.DrawLine(prevPos, newPos);
             prevPos = newPos;
         }
     }
-    private void GetStability()
-    {
-        GameObject footLEFT = GameObject.Find("Pied.L");
-        GameObject footRIGHT = GameObject.Find("Pied.R");
-        Vector3 CoG = CalculateCenterOfGravity();
-        corners = null;
-        isCoGInside = false;
-        if (footLeftOnGround && footRightOnGround)
-        {
-            corners = GetFootBounds(Foot_LEFT, Foot_RIGHT);
 
-            isCoGInside = IsPointInPolygon(4, corners, CoG);
-            //Gizmos.color = isCoGInside ? Color.green : Color.red;
-
-            //DrawPolygon(corners);
-            //Debug.Log("CoG inside both feet bounds: " + isCoGInside);
-        }
-        else if (footLeftOnGround || footRightOnGround)
-        {
-            Transform  footOnGround = footLeftOnGround ? Foot_LEFT : Foot_RIGHT;
-            corners = GetFootBounds(footOnGround);
-
-            isCoGInside = IsPointInPolygon(4, corners, CoG);
-            //Gizmos.color = isCoGInside ? Color.green : Color.red;
-            //DrawPolygon(corners);
-            //Debug.Log("Single foot on ground, not checking CoG inside bounds");
-        }
-    }
     Vector3[] GetFootBounds(Transform  footLEFT, Transform  footRIGHT = null)
     {
         Renderer rendererL = footLEFT.GetComponent<Renderer>();
@@ -1526,7 +1708,7 @@ public class RobotWalk : Agent
 
 
      //Update OrientationCube and DirectionIndicator
-    void UpdateOrientationObjects()
+    public void UpdateOrientationObjects()
     {
         m_WorldDirToWalk = target.position - Bassin.position;
         m_OrientationCube.UpdateOrientation(Bassin, target);
@@ -1537,7 +1719,7 @@ public class RobotWalk : Agent
     }
     public void CatchTarget()
     {
-        reward(1f + targetConsecutive, "Cube touched",StatAggregationMethod.Sum);
+        reward(1f + targetConsecutive*1000, "Cube touched",StatAggregationMethod.Sum);
         targetConsecutive++;
     }
 
@@ -1561,8 +1743,17 @@ public class RobotWalk : Agent
             currentProportionalBassinHeight = System.Math.Min((hit.distance-0.3f) / (normalBassinHeight-0.3f), 1);
             currentBassinHeight = hit.distance;
         }
+        if (Physics.Raycast(Foot_LEFT.position, Vector3.down, out hit, 6f, groundLayerMask))
+        {
+            currentLeftFootHeight = hit.distance-0.061856f;
+        }
+        if (Physics.Raycast(Foot_RIGHT.position, Vector3.down, out hit, 6f, groundLayerMask))
+        {
+            currentRightFootHeight = hit.distance-0.061856f;
+        }
         AddLog("Bassin",currentProportionalBassinHeight);
         AddLog("Head", currentProportionalHeadHeight);
+        DetemineSupportFootV3();
     }
 }
 
