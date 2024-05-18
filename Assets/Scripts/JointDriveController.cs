@@ -118,6 +118,7 @@ namespace Unity.MLAgentsExamples
                 yRot = y == 0? 0 : y > 0? joint.angularYLimit.limit*y : joint.angularYLimit.limit*y;
                 zRot = z == 0? 0 : z > 0? joint.angularZLimit.limit*z : joint.angularZLimit.limit*z;
             }
+            
 
 
             currentXNormalizedRot =

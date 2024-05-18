@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace Unity.MLAgentsExamples
@@ -14,9 +15,11 @@ namespace Unity.MLAgentsExamples
         public float shiftAdd = 250.0f; // multiplied by how long shift is held.  Basically running
         public float maxShift = 1000.0f; // Maximum speed when holdin gshift
         public float camSens = 0.25f; // How sensitive it with mouse
-        public float cameraSpeed = 1f;
+        public float cameraSpeed = 0.2f;
         public bool rotateOnlyIfMousedown = true;
         public bool movementStaysFlat = true;
+
+        private bool speedKeyPressed = false;
 
         Vector3
             m_LastMouse =
@@ -85,20 +88,30 @@ namespace Unity.MLAgentsExamples
             {
                 transform.Translate(p);
             }
+            if (Input.GetKey(KeyCode.KeypadPlus) && speedKeyPressed == false)
+            {
+                speedKeyPressed = true;
+                cameraSpeed *= 1.25f;
+                Debug.Log(cameraSpeed);
+            }
+            if (Input.GetKey(KeyCode.KeypadMinus) && speedKeyPressed == false)
+            {
+                speedKeyPressed = true;
+                cameraSpeed *= 0.75f;
+                cameraSpeed = Math.Max(cameraSpeed, 0f);
+                Debug.Log(cameraSpeed);
+            }
+            if(!Input.GetKey(KeyCode.KeypadMinus) && !Input.GetKey(KeyCode.KeypadPlus))
+            {
+                speedKeyPressed = false;
+            }
         }
 
         Vector3 GetBaseInput()
         {
-            if (Input.GetKey(KeyCode.KeypadPlus))
-            {
-                cameraSpeed += 0.01f;
-            }
-            if (Input.GetKey(KeyCode.KeypadMinus))
-            {
-                cameraSpeed -= System.Math.Max(cameraSpeed - 0.01f, 0);
-            }
-            // returns the basic values, if it's 0 than it's not active.
             var pVelocity = new Vector3();
+
+            // returns the basic values, if it's 0 than it's not active.
             // if (Input.GetKey(KeyCode.Space))
             // {
             //     pVelocity += new Vector3(0, cameraSpeed, 0);

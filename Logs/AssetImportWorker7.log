@@ -15,7 +15,7 @@ C:/Dev/Unity_ML-Agents/V3/ELMO
 -logFile
 Logs/AssetImportWorker7.log
 -srvPort
-53059
+60714
 Successfully changed project path to: C:/Dev/Unity_ML-Agents/V3/ELMO
 C:/Dev/Unity_ML-Agents/V3/ELMO
 [UnityMemory] Configuration Parameters - Can be set up in boot.config
@@ -49,12 +49,12 @@ C:/Dev/Unity_ML-Agents/V3/ELMO
     "memorysetup-temp-allocator-size-cloud-worker=32768"
     "memorysetup-temp-allocator-size-gi-baking-worker=262144"
     "memorysetup-temp-allocator-size-gfx=262144"
-Player connection [67980] Host "[IP] 192.168.1.113 [Port] 0 [Flags] 2 [Guid] 1517801704 [EditorId] 1517801704 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-LB3974N) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" joined multi-casting on [225.0.0.222:54997]...
+Player connection [75536] Host "[IP] 192.168.56.1 [Port] 0 [Flags] 2 [Guid] 986883077 [EditorId] 986883077 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-LB3974N) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" joined multi-casting on [225.0.0.222:54997]...
 
-Player connection [67980] Host "[IP] 192.168.1.113 [Port] 0 [Flags] 2 [Guid] 1517801704 [EditorId] 1517801704 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-LB3974N) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" joined alternative multi-casting on [225.0.0.222:34997]...
+Player connection [75536] Host "[IP] 192.168.56.1 [Port] 0 [Flags] 2 [Guid] 986883077 [EditorId] 986883077 [Version] 1048832 [Id] WindowsEditor(7,DESKTOP-LB3974N) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" joined alternative multi-casting on [225.0.0.222:34997]...
 
 [Physics::Module] Initialized MultithreadedJobDispatcher with 19 workers.
-Refreshing native plugins compatible for Editor in 21.40 ms, found 7 plugins.
+Refreshing native plugins compatible for Editor in 64.39 ms, found 7 plugins.
 Preloading 0 native plugins for Editor in 0.00 ms.
 Initialize engine version: 2022.3.22f1 (887be4894c44)
 [Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/Resources/UnitySubsystems
@@ -70,12 +70,207 @@ Initialize mono
 Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/Managed'
 Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
 Mono config path = 'C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/MonoBleedingEdge/etc'
-Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56952
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56052
 Begin MonoManager ReloadAssembly
 Registering precompiled unity dll's ...
 Register platform support module: C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
 Register platform support module: C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
-Registered in 0.015270 seconds.
-- Loaded All Assemblies, in  0.578 seconds
+Registered in 0.015443 seconds.
+- Loaded All Assemblies, in  0.591 seconds
 Native extension for WindowsStandalone target not found
 Native extension for WebGL target not found
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.375 seconds
+Domain Reload Profiling: 961ms
+	BeginReloadAssembly (197ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (0ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (2ms)
+	RebuildCommonClasses (44ms)
+	RebuildNativeTypeToScriptingClass (14ms)
+	initialDomainReloadingComplete (86ms)
+	LoadAllAssembliesAndSetupDomain (246ms)
+		LoadAssemblies (194ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (241ms)
+			TypeCache.Refresh (240ms)
+				TypeCache.ScanAssembly (208ms)
+			ScanForSourceGeneratedMonoScriptInfo (0ms)
+			ResolveRequiredComponents (1ms)
+	FinalizeReload (375ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (255ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (15ms)
+			SetLoadedEditorAssemblies (8ms)
+			RefreshPlugins (0ms)
+			BeforeProcessingInitializeOnLoad (3ms)
+			ProcessInitializeOnLoadAttributes (172ms)
+			ProcessInitializeOnLoadMethodAttributes (57ms)
+			AfterProcessingInitializeOnLoad (0ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (0ms)
+========================================================================
+Worker process is ready to serve import requests
+Begin MonoManager ReloadAssembly
+- Loaded All Assemblies, in  0.853 seconds
+Refreshing native plugins compatible for Editor in 10.91 ms, found 7 plugins.
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+[Package Manager] Server::EnsureServerProcessIsRunning -- launch failed, reason: Unity was launched with the -noUpm command-line argument
+[Package Manager] UpmClient::Send -- Unable to send message (not connected to UPM process).
+[Package Manager] Cannot connect to Unity Package Manager local server
+Mono: successfully reloaded assembly
+- Finished resetting the current domain, in  0.682 seconds
+Domain Reload Profiling: 1529ms
+	BeginReloadAssembly (170ms)
+		ExecutionOrderSort (0ms)
+		DisableScriptedObjects (7ms)
+		BackupInstance (0ms)
+		ReleaseScriptingObjects (0ms)
+		CreateAndSetChildDomain (22ms)
+	RebuildCommonClasses (36ms)
+	RebuildNativeTypeToScriptingClass (13ms)
+	initialDomainReloadingComplete (56ms)
+	LoadAllAssembliesAndSetupDomain (571ms)
+		LoadAssemblies (442ms)
+		RebuildTransferFunctionScriptingTraits (0ms)
+		AnalyzeDomain (230ms)
+			TypeCache.Refresh (199ms)
+				TypeCache.ScanAssembly (182ms)
+			ScanForSourceGeneratedMonoScriptInfo (23ms)
+			ResolveRequiredComponents (7ms)
+	FinalizeReload (683ms)
+		ReleaseScriptCaches (0ms)
+		RebuildScriptCaches (0ms)
+		SetupLoadedEditorAssemblies (513ms)
+			LogAssemblyErrors (0ms)
+			InitializePlatformSupportModulesInManaged (12ms)
+			SetLoadedEditorAssemblies (4ms)
+			RefreshPlugins (0ms)
+			BeforeProcessingInitializeOnLoad (88ms)
+			ProcessInitializeOnLoadAttributes (375ms)
+			ProcessInitializeOnLoadMethodAttributes (22ms)
+			AfterProcessingInitializeOnLoad (12ms)
+			EditorAssembliesLoaded (0ms)
+		ExecutionOrderSort2 (0ms)
+		AwakeInstancesAfterBackupRestoration (8ms)
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.04 seconds
+Refreshing native plugins compatible for Editor in 7.08 ms, found 7 plugins.
+Preloading 0 native plugins for Editor in 0.00 ms.
+Unloading 4048 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 89 unused Assets / (22.8 MB). Loaded Objects now: 4464.
+Memory consumption went from 190.1 MB to 167.3 MB.
+Total: 7.695000 ms (FindLiveObjects: 0.456800 ms CreateObjectMapping: 0.151400 ms MarkObjects: 4.013700 ms  DeleteObjects: 3.071600 ms)
+
+AssetImportParameters requested are different than current active one (requested -> active):
+  custom:container-demuxer-ogg: 62fdf1f143b41e24485cea50d1cbac27 -> 
+  custom:video-decoder-ogg-theora: a1e56fd34408186e4bbccfd4996cb3dc -> 
+  custom:framework-win-MediaFoundation: 216162199b28c13a410421893ffa2e32 -> 
+  custom:CustomObjectIndexerAttribute: 9a22284fe3817be447336de3de66b15e -> 
+  custom:container-demuxer-webm: 4f35f7cbe854078d1ac9338744f61a02 -> 
+  custom:container-muxer-webm: aa71ff27fc2769a1b78a27578f13a17b -> 
+  custom:video-decoder-webm-vp8: 9c59270c3fd7afecdb556c50c9e8de78 -> 
+  custom:SearchIndexIgnoredProperties: e643bd26f0fe6173181afceb89e7c659 -> 
+  custom:AudioImporter_EditorPlatform: d09bf68614088b80899f8185d706f6e7 -> 
+  custom:video-encoder-webm-vp8: eb34c28f22e8b96e1ab97ce403110664 -> 
+  custom:audio-decoder-ogg-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
+  custom:audio-encoder-webm-vorbis: bf7c407c2cedff20999df2af8eb42d56 -> 
+========================================================================
+Received Import Request.
+  Time since last request: 469242.036292 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Bricks091_1K-JPG_Color.jpg
+  artifactKey: Guid(3473ecdc355d11c4d9a53fd3699ca620) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Bricks091_1K-JPG_Color.jpg using Guid(3473ecdc355d11c4d9a53fd3699ca620) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'ec763b09a407659d3cae6299ad1ecba0') in 0.210428 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000028 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/RoofingTiles013C_2K-JPG_Opacity.jpg
+  artifactKey: Guid(d63c806fbb73be24cb59ef26e040d24c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/RoofingTiles013C_2K-JPG_Opacity.jpg using Guid(d63c806fbb73be24cb59ef26e040d24c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'dfcad972abea5ace30b4b478fd1c4c8f') in 0.144538 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000075 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Rock051_2K-JPG_Roughness.jpg
+  artifactKey: Guid(ad9e8344550196745861faee7f65e846) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Rock051_2K-JPG_Roughness.jpg using Guid(ad9e8344550196745861faee7f65e846) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'e7ff430b05b71de80e751a7c7f40ea96') in 0.152135 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000018 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Sign022_1K-JPG_Color.jpg
+  artifactKey: Guid(2e58b6d449b05e948847dd9dd80d27ed) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Sign022_1K-JPG_Color.jpg using Guid(2e58b6d449b05e948847dd9dd80d27ed) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '5a0fea3034acc747554a9dc8cfd8e544') in 0.067962 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000021 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Rock051_2K-JPG_NormalGL.jpg
+  artifactKey: Guid(7faf2069f8624904cbf842d803caae2b) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Rock051_2K-JPG_NormalGL.jpg using Guid(7faf2069f8624904cbf842d803caae2b) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '672bd09a7489dec2c0b62c6aee5c03c1') in 0.065187 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000027 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Ground037_2K-JPG_Color.jpg
+  artifactKey: Guid(3e92d86e13c9781479f9645dc9c14a6f) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Ground037_2K-JPG_Color.jpg using Guid(3e92d86e13c9781479f9645dc9c14a6f) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '4cef8b7bb7b3b38bb5118306d43e61a1') in 0.021777 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000017 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Metal022_1K-JPG_Metalness.jpg
+  artifactKey: Guid(5fb9432399008f24f81ce2cbc88f7a99) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Metal022_1K-JPG_Metalness.jpg using Guid(5fb9432399008f24f81ce2cbc88f7a99) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'b3e2b10e8a110e18e2ebb7b761408ffb') in 0.016010 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000167 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Metal022_1K-JPG_NormalGL.jpg
+  artifactKey: Guid(88e59e4f0ca3dda45b2e5cd34d37d6fd) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Metal022_1K-JPG_NormalGL.jpg using Guid(88e59e4f0ca3dda45b2e5cd34d37d6fd) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'bbba43d9e313a54362ecdb4a873241c2') in 0.023507 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000019 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/RoofingTiles013C_2K-JPG_Roughness.jpg
+  artifactKey: Guid(d6a6177fad50e10408d286170484c58c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/RoofingTiles013C_2K-JPG_Roughness.jpg using Guid(d6a6177fad50e10408d286170484c58c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '4549814f94c768fc74e4fdb04414c47d') in 0.025739 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 0.000023 seconds.
+  path: Assets/Prefab/Campagne+Bunker.fbm/Grass003_2K-JPG_NormalGL.jpg
+  artifactKey: Guid(57ce45bd600c9fd4bae8c37ff6587a6a) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Campagne+Bunker.fbm/Grass003_2K-JPG_NormalGL.jpg using Guid(57ce45bd600c9fd4bae8c37ff6587a6a) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: 'b51e6e2663d24235cc8383b962f853f2') in 0.019416 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+========================================================================
+Received Import Request.
+  Time since last request: 24.880513 seconds.
+  path: Assets/Prefab/Materials/Montagne.mat
+  artifactKey: Guid(08c56ab2df5ac534887ddcc8a5279c4c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)
+Start importing Assets/Prefab/Materials/Montagne.mat using Guid(08c56ab2df5ac534887ddcc8a5279c4c) Importer(815301076,1909f56bfc062723c751e8b465ee728b)  -> (artifact id: '704bf89a303731ca4a4fee8d86a16937') in 0.086794 seconds
+Number of updated asset objects reloaded before import = 0
+Number of asset objects unloaded after import = 2
+Editor requested this worker to shutdown with reason: Scaling down because of idle timeout
+TcpMessagingSession - receive error: operation aborted. errorcode: 995, details: L’opération d’entrée/sortie a été abandonnée en raison de l’arrêt d’un thread ou à la demande d’une application.
+AssetImportWorker is now disconnected from the server
+Process exiting
+Exiting without the bug reporter. Application will terminate with return code 0

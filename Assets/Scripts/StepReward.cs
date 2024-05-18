@@ -43,7 +43,7 @@ public class StepReward
         bonus += bassinHeight;
         bonus += firstStepHandSupport();
 
-        agent.reward(bonus);
+        agent.Reward(bonus);
     }
 
     public void RiseHead()
@@ -55,17 +55,17 @@ public class StepReward
         }
         float bonus = 0f;
 
-        bonus += FirstStepHeadOnTop(penality:0, baseValue:1, timeExpo:false);
+        // bonus += FirstStepHeadOnTop(penality:0, baseValue:1, timeExpo:false);
         float headHeight = Mathf.Abs(agent.Head.position.y - ((agent.Foot_LEFT.position.y + agent.Foot_RIGHT.position.y)/2));
         if(headHeight > 3.6f)
         {
-            agent.reward(50f);
+            agent.Reward(50f);
             agent.EndEpisode();
         }
 
         bonus += firstStepHandSupport();
 
-        agent.reward(bonus);
+        agent.Reward(bonus);
     }
 
     public void CenterOfGravity()
@@ -89,7 +89,7 @@ public class StepReward
                 if(headHeight > 3.7f)
                 {
                     Debug.Log("JACKPOT !!!");
-                    agent.reward(500f);
+                    agent.Reward(500f);
                     //agent.EndEpisode();
                 }
             // }
@@ -100,7 +100,7 @@ public class StepReward
         //     //bonus += simpleHeadOnTop(penality:0, baseValue:1, timeExpo:false);
         // }
         bonus += firstStepHandSupport();
-        agent.reward(bonus);
+        agent.Reward(bonus);
     }
 
     public void RiseFromBack()
@@ -108,10 +108,10 @@ public class StepReward
         float bonus = 0f;
         bonus += firstStepHandSupport();
         bonus += Math.Min(1, (agent.Head.position.y-1.6f) / 3.2f);//4.8f   0.29
-        agent.reward(bonus);
+        agent.Reward(bonus);
         if(agent.OrientationTorseFloor() == 1)
         {
-            agent.reward(100f);
+            agent.Reward(100f);
             Debug.Log("Il s'est RETOURNE !!!");
             agent.EndEpisode();
         }
@@ -128,7 +128,7 @@ public class StepReward
         float bonus = 0f;
         bonus += agent.simpleHeadOnTop(penality:0, baseValue:3, timeExpo:false);
         //bonus += CenterOfGravityRiseReward()/3;
-        agent.reward(bonus);
+        agent.Reward(bonus);
     }
 
 
@@ -142,14 +142,14 @@ public class StepReward
         //(agent.startPosition, agent.startRotation) = vc.GetRandomPosition(VariableCustom.PositionType.debout);
         
         //bonus += agent.isWalkingForward();
-        //agent.reward(agent.DistanceToTarget(), "Distance to Target");
-        agent.reward(agent.currentProportionalHeadHeight, "Head Height", Unity.MLAgents.StatAggregationMethod.Average);
-        //agent.reward(CenterOfGravityWalkReward(), "Center of Gravity");
-        //agent.reward(agent.ApplyStepReward(), "Step Reward");
-        //agent.reward(agent.isWalkingForward(), "Is Walking Forward");
+        //agent.Reward(agent.DistanceToTarget(), "Distance to Target");
+        agent.Reward(agent.currentProportionalHeadHeight, "Head Height", Unity.MLAgents.StatAggregationMethod.Average);
+        //agent.Reward(CenterOfGravityWalkReward(), "Center of Gravity");
+        //agent.Reward(agent.ApplyStepReward(), "Step Reward");
+        //agent.Reward(agent.isWalkingForward(), "Is Walking Forward");
         if(agent.currentProportionalHeadHeight < 0.8)
         {
-            // agent.reward(-5f);
+            // agent.Reward(-5f);
             // agent.EndEpisode();
         }
     }
@@ -167,67 +167,67 @@ public class StepReward
 
         if(agent.currentProportionalHeadHeight < 0.5f)
         {
-            agent.reward(-1f);
+            agent.Reward(-1f);
             //agent.EndEpisode();
         }
 
         if(agent.currentHeadHeight > 0.9)
         {
-            agent.reward(1000f);
+            agent.Reward(1000f);
             agent.EndEpisode();
         }
         //bonus+= agent.DistanceToTarget();
         //bonus+= CenterOfGravityRiseReward();
         //bonus += agent.currentProportionalHeadHeight;
-        agent.reward(bonus);
+        agent.Reward(bonus);
     }
 
 
-    public float FirstStepHeadOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
-    {
-        float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
-        float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
-        float tolerance = 3.7f;    // Tolérance au-delà de laquelle la récompense devient négative
-        float headHeight = Mathf.Abs(agent.Head.position.y - ((agent.Foot_LEFT.position.y + agent.Foot_RIGHT.position.y)/2));
+    // public float FirstStepHeadOnTop(int penality = 0, float baseValue = 1f, bool timeExpo = false)
+    // {
+    //     float minHeight = -0.2f;  // Hauteur minimale au-dessus de la hauteur normale
+    //     float maxHeight = 0.15f;   // Hauteur maximale au-dessus de la hauteur normale
+    //     float tolerance = 3.7f;    // Tolérance au-delà de laquelle la récompense devient négative
+    //     float headHeight = Mathf.Abs(agent.Head.position.y - ((agent.Foot_LEFT.position.y + agent.Foot_RIGHT.position.y)/2));
 
-        float lowerBound = agent.normalHeadHeight + minHeight;
-        float upperBound = agent.normalHeadHeight + maxHeight;
+    //     // float lowerBound = agent.normalHeadHeight + minHeight;
+    //     // float upperBound = agent.normalHeadHeight + maxHeight;
 
-        // Calculer la distance hors de la plage optimale
-        float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
-        float distanceFromUpperBound = Mathf.Max(headHeight - upperBound, 0);
-        float effectiveDistance = Mathf.Max(distanceFromLowerBound, distanceFromUpperBound);
+    //     // Calculer la distance hors de la plage optimale
+    //     float distanceFromLowerBound = Mathf.Max(lowerBound - headHeight, 0);
+    //     float distanceFromUpperBound = Mathf.Max(headHeight - upperBound, 0);
+    //     float effectiveDistance = Mathf.Max(distanceFromLowerBound, distanceFromUpperBound);
 
-        float reward;
+    //     float reward;
 
-        if (headHeight >= lowerBound && headHeight <= upperBound)
-        {
-            reward = baseValue;
-        }
-        else if (effectiveDistance <= tolerance)
-        {
-            reward = baseValue - (effectiveDistance / tolerance)*baseValue ;
-        }
-        else
-        {
-            // Au-delà de la tolérance, la récompense devient négative
-            reward = -((effectiveDistance - tolerance) / tolerance);
-        }
+    //     if (headHeight >= lowerBound && headHeight <= upperBound)
+    //     {
+    //         reward = baseValue;
+    //     }
+    //     else if (effectiveDistance <= tolerance)
+    //     {
+    //         reward = baseValue - (effectiveDistance / tolerance)*baseValue ;
+    //     }
+    //     else
+    //     {
+    //         // Au-delà de la tolérance, la récompense devient négative
+    //         reward = -((effectiveDistance - tolerance) / tolerance);
+    //     }
 
-        // Appliquer une pénalité si spécifié
-        if (penality != 0)
-        {
-            reward -= penality * (reward > 0 ? 0.1f : 2.0f);  // Pénalité réduite si positive, doublée si négative
-        }
-        else
-        {
-            reward = System.Math.Max(0, reward);
-        }
+    //     // Appliquer une pénalité si spécifié
+    //     if (penality != 0)
+    //     {
+    //         reward -= penality * (reward > 0 ? 0.1f : 2.0f);  // Pénalité réduite si positive, doublée si négative
+    //     }
+    //     else
+    //     {
+    //         reward = System.Math.Max(0, reward);
+    //     }
 
-        //Debug.Log("Reward: " + reward);
+    //     //Debug.Log("Reward: " + reward);
 
-        return reward;
-    }
+    //     return reward;
+    // }
     private float firstStepHandSupport()
     {
         float distanceHandHeadMax = 2.433f;
@@ -340,14 +340,14 @@ public class StepReward
         // }
         if(headHeight < 1.5f)
         {
-            agent.reward(-1f);
+            agent.Reward(-1f);
             //agent.EndEpisode();
         }
         // if(headHeight > 3.5f && (agent.leftFootContact.LeftFootOnFloor || agent.rightFootContact.RightFootOnFloor))
         // {
         //     bonus += 2f;
         //     //Debug.Log("L'agent s'est levé !!!");
-        //     //agent.reward(bonus);
+        //     //agent.Reward(bonus);
         //     // agent.AddLog("Goal", 1f, Unity.MLAgents.StatAggregationMethod.Sum);
         //     //agent.EndEpisode();
         // }
@@ -355,8 +355,8 @@ public class StepReward
         //bonus+= CenterOfGravityRiseReward();
         //bonus += agent.isWalkingForward();
         //bonus += -1f / agent.MaxStep;
-        bonus += (headHeight -1.2f) / (agent.normalHeadHeight - 1.2f);
-        agent.reward(bonus);
+        // bonus += (headHeight -1.2f) / (agent.normalHeadHeight - 1.2f);
+        agent.Reward(bonus);
     }
 
     public void WakeUp()
@@ -388,14 +388,14 @@ public class StepReward
         }
         if(agent.TempsSession > 2f && agent.currentProportionalHeadHeight > 0.8f )
         {
-            //agent.reward(1000f * agent.decayRate);
+            //agent.Reward(1000f * agent.decayRate);
             
             standUpDuration ++;
-            agent.reward(400f * (float)standUpDuration *agent.currentProportionalHeadHeight);
+            agent.Reward(400f * (float)standUpDuration *agent.currentProportionalHeadHeight);
             //agent.EndEpisode();
             if(agent.currentProportionalHeadHeight > 0.95)
             {
-                agent.reward(200f);
+                agent.Reward(200f);
                 Debug.Log("WAKE UP " +standUpDuration);
                 agent.AddLog("Wake UP", 1f, Unity.MLAgents.StatAggregationMethod.Sum);
             }
@@ -407,6 +407,6 @@ public class StepReward
         }
         
         
-        agent.reward(bonus*agent.decayRate);
+        agent.Reward(bonus*agent.decayRate);
     }
 }

@@ -25,7 +25,7 @@ namespace Unity.MLAgentsExamples
 
         [Header("Target Fell Protection")]
         public bool respawnIfFallsOffPlatform = true; //If the target falls off the platform, reset the position.
-        public float fallDistance = 5; //distance below the starting height that will trigger a respawn
+        public float fallDistance = 10; //distance below the starting height that will trigger a respawn
 
         private Vector3 m_startingPos; //the starting position of the target
         public Transform agentPosition;
@@ -78,16 +78,43 @@ namespace Unity.MLAgentsExamples
         /// </summary>
         public void MoveTargetToRandomPosition()
         {
-            // if(robotWalk.enTest)
-            // {
-            //     transform.position = new Vector3(0,0.5f,10f);
-            // }
-            // else
-            // {                
-                var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
+            
+            // var newTargetPos = m_startingPos + (Random.insideUnitSphere * Random.Range(minSpawnRadius, maxSpawnRadius));
+            // newTargetPos.y = m_startingPos.y;
+            // transform.position = newTargetPos;
+
+            // // Appliquer la nouvelle position
+            // transform.position = newTargetPos;
+
+
+
+            // Définir une nouvelle position x, y reste la hauteur maximale pour le raycasting
+            var newTargetPos = m_startingPos;
+            newTargetPos.x = m_startingPos.x + Random.Range(-10, 10);
+            newTargetPos.z = m_startingPos.z + Random.Range(-10, 10);
+
+            // Définir une hauteur maximale de départ pour le raycast si nécessaire
+            float maxRaycastHeight = 5.0f; // Ajustez cette valeur en fonction de la configuration de votre scène
+
+            // Créer un point haut pour le départ du rayon
+            Vector3 rayStart = new Vector3(newTargetPos.x, maxRaycastHeight, newTargetPos.z);
+            RaycastHit hit;
+
+            // Effectuer le raycast vers le bas
+            if (Physics.Raycast(rayStart, Vector3.down, out hit))
+            {
+                // Si le rayon touche quelque chose, définir la position y au point de contact
+                newTargetPos.y = hit.point.y + 1.0f; // Ajoutez une petite marge pour éviter le clipping avec le sol
+            }
+            else
+            {
+                // Si rien n'est touché, utilisez la position y de startingPos ou une valeur par défaut
                 newTargetPos.y = m_startingPos.y;
-                transform.position = newTargetPos;
-            //}
+            }
+
+            // Appliquer la nouvelle position
+            transform.position = newTargetPos;
+
         }
 
         private void OnCollisionEnter(Collision col)
@@ -102,7 +129,6 @@ namespace Unity.MLAgentsExamples
                 if (respawnIfTouched)
                 {
                     MoveTargetToRandomPosition();
-                    robotWalk.UpdateOrientationObjects();
                 }
             }
         }

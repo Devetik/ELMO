@@ -31,13 +31,13 @@ namespace Unity.MLAgentsExamples
                 touchingGround = true;
                 if (penalizeGroundContact)
                 {
-                    agent.reward(groundContactPenalty);
+                    //agent.Reward(groundContactPenalty);
                     agent.AddLog("Floor penalty", groundContactPenalty, StatAggregationMethod.Sum);
                 }
 
                 if (agentDoneOnGroundContact)
                 {
-                    agent.EndEpisode();
+                    //agent.EndEpisode();
                 }
             }
         }
@@ -52,13 +52,18 @@ namespace Unity.MLAgentsExamples
             {
                 touchingGround = false;
             }
+            if (other.transform.CompareTag("Walls"))
+            {
+                agent.Reward(-100f);
+                agent.EndEpisode();
+            }
         }
 
         private void OnTriggerEnter(Collider other)
         {
             if(other.gameObject.tag == "Walls")
             {
-                agent.reward(-100f);
+                agent.Reward(-100f);
                 agent.EndEpisode();
             }
         }

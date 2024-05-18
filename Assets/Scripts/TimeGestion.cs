@@ -37,14 +37,14 @@ public class TimeGestion : MonoBehaviour
         {
             Time.timeScale = 0.01f;
         }
-        if (Input.GetKeyDown(KeyCode.KeypadPlus))
+        if (Input.GetKeyDown(KeyCode.KeypadPeriod))
         {
             // Augmente le timeScale pour accélérer le temps
             Time.timeScale += 0.1f;
         }
 
         // Vérifie si la touche '-' du pavé numérique est pressée
-        if (Input.GetKeyDown(KeyCode.KeypadMinus))
+        if (Input.GetKeyDown(KeyCode.Keypad0))
         {
             // Diminue le timeScale pour ralentir le temps
             Time.timeScale -= 0.1f;
